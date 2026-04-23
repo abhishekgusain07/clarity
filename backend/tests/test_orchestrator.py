@@ -114,3 +114,56 @@ async def test_repository_persists_and_loads_run(db_session):
     assert reloaded.state == PipelineRunState.AWAITING_FIT_APPROVAL
     assert reloaded.cost_accumulated_usd == 0.05
     assert reloaded.artifacts["fit_analysis"]["overall_score"] == 72
+
+
+import asyncio
+
+from apply.orchestrator.events import EventBus
+
+
+@pytest.mark.asyncio
+async def test_event_bus_delivers_events_to_subscribers():
+    bus = EventBus()
+    received: list[dict] = []
+
+    async def collect():
+        async for ev in bus.subscribe("run-1"):
+            received.append(ev)
+            if ev.get("final"):
+                return
+
+    consumer = asyncio.create_task(collect())
+    await asyncio.sleep(0)  # let subscriber start
+
+    await bus.publish("run-1", {"type": "agent_start", "name": "intake"})
+    await bus.publish("run-1", {"type": "agent_done", "name": "intake"})
+    await bus.publish("run-1", {"type": "checkpoint_reached", "final": True})
+
+    await asyncio.wait_for(consumer, timeout=1.0)
+
+    assert len(received) == 3
+    assert received[0]["name"] == "intake"
+    assert received[-1]["final"] is True
+
+
+@pytest.mark.asyncio
+async def test_event_bus_scopes_by_run_id():
+    bus = EventBus()
+    received_a: list[dict] = []
+
+    async def collect():
+        async for ev in bus.subscribe("run-A"):
+            received_a.append(ev)
+            if ev.get("final"):
+                return
+
+    consumer = asyncio.create_task(collect())
+    await asyncio.sleep(0)
+
+    await bus.publish("run-B", {"type": "noise"})  # should NOT be delivered
+    await bus.publish("run-A", {"type": "hit", "final": True})
+
+    await asyncio.wait_for(consumer, timeout=1.0)
+
+    assert len(received_a) == 1
+    assert received_a[0]["type"] == "hit"
