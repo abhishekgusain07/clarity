@@ -1,5 +1,5 @@
 {
-  "name": "clarity-research-agent",
+  "name": "apply",
   "private": true,
   "type": "module",
   "imports": {

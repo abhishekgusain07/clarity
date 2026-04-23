@@ -11,3 +11,28 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/.venv/
+backend/dist/
+backend/build/
+backend/*.egg-info/
+backend/.pytest_cache/
+backend/.ruff_cache/
+backend/.mypy_cache/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Databases (local)
+*.db
+*.sqlite
+*.sqlite3
+backend/data/
