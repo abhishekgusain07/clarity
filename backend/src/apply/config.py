@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     apply_cost_cap_usd: float = Field(default=0.50, alias="APPLY_COST_CAP_USD")
     apply_daily_cap_usd: float = Field(default=5.00, alias="APPLY_DAILY_CAP_USD")
 
+    apply_use_real_agents: bool = Field(default=False, alias="APPLY_USE_REAL_AGENTS")
+
+    # OpenRouter routing for Claude (OpenAI-compatible API)
+    apply_openrouter_api_key: str = Field(default="", alias="APPLY_OPENROUTER_API_KEY")
+    apply_http_referer: str = Field(
+        default="https://github.com/apply-agent/apply", alias="APPLY_HTTP_REFERER"
+    )
+    apply_x_title: str = Field(default="Apply", alias="APPLY_X_TITLE")
+
 
 def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]
