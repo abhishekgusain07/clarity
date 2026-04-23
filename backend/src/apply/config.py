@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 
 from pydantic import Field
@@ -44,5 +45,6 @@ class Settings(BaseSettings):
     apply_x_title: str = Field(default="Apply", alias="APPLY_X_TITLE")
 
 
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]
