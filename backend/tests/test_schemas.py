@@ -196,3 +196,36 @@ def test_fit_score_must_be_0_to_100():
             reasoning="",
             recommended_action=RecommendedAction.PROCEED,
         )
+
+
+from datetime import datetime
+
+from apply.schemas.enums import ScreeningAnswerOrigin
+from apply.schemas.writing import CoverLetter, ScreeningAnswer
+
+
+def test_cover_letter_valid():
+    letter = CoverLetter(
+        id="cl-1",
+        application_id="app-1",
+        draft_version=1,
+        body_markdown="Dear team, ...",
+        word_count=250,
+        references_company_specifics=["Series A in 2025", "shipped agent framework"],
+        voice_similarity_score=0.72,
+        created_at=datetime(2026, 4, 23, 12, 0, 0),
+    )
+
+    assert letter.draft_version == 1
+    assert letter.voice_similarity_score == 0.72
+
+
+def test_screening_answer_valid():
+    answer = ScreeningAnswer(
+        question="Why this company?",
+        answer="Because ...",
+        word_count=100,
+        drafted_by=ScreeningAnswerOrigin.PROACTIVE,
+    )
+
+    assert answer.drafted_by == ScreeningAnswerOrigin.PROACTIVE
