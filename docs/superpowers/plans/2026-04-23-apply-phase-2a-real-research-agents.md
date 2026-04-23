@@ -4,9 +4,9 @@
 
 **Goal:** Replace the three research-phase stubs (Intake, Company Researcher, Fit Analyst) with real LLM-backed agents using Pydantic AI, wiring Tavily and Firecrawl as MCP servers, so the user-facing pipeline produces genuine research output at HITL #1.
 
-**Architecture:** Each agent is a `pydantic_ai.Agent` with a typed `result_type` (JobListing / CompanyResearch / FitAnalysis). Intake uses Haiku + a single Firecrawl scrape to get JD text, then a structured-output call. Company Researcher uses Sonnet 4.6 with Tavily + Firecrawl MCP servers in a ReAct loop. Fit Analyst uses Sonnet 4.6 in a single-shot call over resume + JD + company research. An `APPLY_USE_REAL_AGENTS` env flag switches between real and stub implementations so the walking skeleton still demos without API keys. LLM calls in tests are recorded with VCR.
+**Architecture:** Each agent is a `pydantic_ai.Agent` with a typed `result_type` (JobListing / CompanyResearch / FitAnalysis). Intake uses Haiku + a single Firecrawl scrape to get JD text, then a structured-output call. Company Researcher uses Sonnet 4.6 with Tavily + Firecrawl MCP servers in a ReAct loop. Fit Analyst uses Sonnet 4.6 in a single-shot call over resume + JD + company research. Claude models are accessed via **OpenRouter** (OpenAI-compatible API, with `HTTP-Referer` and `X-Title` headers) rather than Anthropic direct — configured via `APPLY_OPENROUTER_API_KEY`, `APPLY_HTTP_REFERER`, `APPLY_X_TITLE`. An `APPLY_USE_REAL_AGENTS` env flag switches between real and stub implementations so the walking skeleton still demos without API keys. LLM calls in tests are recorded with VCR.
 
-**Tech Stack:** Pydantic AI 0.0.14+, Anthropic Python SDK, pydantic-ai-slim MCP support, Tavily MCP server (`tavily-mcp` via npx), Firecrawl MCP server (`firecrawl-mcp` via npx), pytest + pytest-vcr for deterministic test runs.
+**Tech Stack:** Pydantic AI 0.0.52+, OpenAI Python SDK (pointing at OpenRouter), pydantic-ai-slim MCP support, Tavily MCP server (`tavily-mcp` via npx), Firecrawl MCP server (`firecrawl-mcp` via npx), pytest + pytest-vcr for deterministic test runs.
 
 **What this plan does NOT cover:** Eval harness, goldenset, baseline comparisons, LLM-as-judge (those are Phase 2b). Cover Letter Writer, Screening, Form-Fill, Memory Curator replacements (Phase 3+).
 
@@ -31,7 +31,7 @@
 - `backend/tests/agents/test_runtime.py`
 
 **Modified files:**
-- `backend/pyproject.toml` — add anthropic upgrade, pydantic-ai upgrade, pytest-vcr, pytest-recording
+- `backend/pyproject.toml` — upgrade pydantic-ai with openai+mcp extras, add pytest-vcr, pytest-recording
 - `.env.example` — mark required keys for Phase 2a
 - `backend/src/apply/config.py` — add `apply_use_real_agents` flag
 - `backend/src/apply/orchestrator/graph.py` — route agent calls through `runtime` helpers
@@ -53,12 +53,14 @@ If `npx` isn't available: `brew install node` then retry.
 Copy API keys to `.env` at repo root:
 
 ```
-ANTHROPIC_API_KEY=sk-ant-...
+APPLY_OPENROUTER_API_KEY=sk-or-v1-...
+APPLY_HTTP_REFERER=https://github.com/you/your-repo
+APPLY_X_TITLE=Apply
 TAVILY_API_KEY=tvly-...
 FIRECRAWL_API_KEY=fc-...
 ```
 
-Without the keys, most tasks still ship code (they use VCR cassettes), but Task 13's live integration test will skip.
+Without the keys, most tasks still ship code (unit tests use Pydantic AI's `TestModel`), but Task 12's live integration test will skip.
 
 ---
 
@@ -77,14 +79,13 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",
     "pydantic>=2.9.0",
     "pydantic-settings>=2.6.0",
-    "pydantic-ai-slim[anthropic,mcp]>=0.0.52",
+    "pydantic-ai-slim[openai,mcp]>=0.0.52",
     "sqlalchemy[asyncio]>=2.0.36",
     "asyncpg>=0.30.0",
     "alembic>=1.14.0",
     "sse-starlette>=2.1.3",
     "langfuse>=2.57.0",
     "httpx>=0.28.0",
-    "anthropic>=0.39.0",
     "openai>=1.54.0",
     "python-multipart>=0.0.20",
 ]
@@ -112,7 +113,7 @@ Expected: resolves and installs `pydantic-ai-slim`, `pytest-recording`, `vcrpy`.
 - [ ] **Step 3: Verify imports**
 
 ```bash
-cd backend && uv run python -c "from pydantic_ai import Agent; from pydantic_ai.mcp import MCPServerStdio; from pydantic_ai.models.anthropic import AnthropicModel; print('ok')"
+cd backend && uv run python -c "from pydantic_ai import Agent; from pydantic_ai.mcp import MCPServerStdio; from pydantic_ai.models.openai import OpenAIModel; from pydantic_ai.providers.openai import OpenAIProvider; print('ok')"
 ```
 
 Expected: `ok`
@@ -129,19 +130,19 @@ Expected: 46 passed.
 
 ```bash
 git add backend/pyproject.toml backend/uv.lock
-git commit -m "chore(deps): upgrade pydantic-ai with anthropic+mcp extras; add VCR"
+git commit -m "chore(deps): upgrade pydantic-ai with openai+mcp extras; add VCR"
 ```
 
 ---
 
-## Task 2: Extend config with `apply_use_real_agents` flag
+## Task 2: Extend config with OpenRouter + real-agents flags
 
 **Files:**
 - Modify: `backend/src/apply/config.py`
 - Modify: `.env.example`
 - Modify: `backend/tests/test_config.py`
 
-- [ ] **Step 1: Append failing test**
+- [ ] **Step 1: Append failing tests**
 
 Append to `backend/tests/test_config.py`:
 
@@ -162,15 +163,41 @@ def test_settings_use_real_agents_true(monkeypatch):
     settings = Settings()
 
     assert settings.apply_use_real_agents is True
+
+
+def test_settings_openrouter_fields(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://u:p@h/db")
+    monkeypatch.setenv("APPLY_OPENROUTER_API_KEY", "sk-or-v1-test")
+    monkeypatch.setenv("APPLY_HTTP_REFERER", "https://example.com/app")
+    monkeypatch.setenv("APPLY_X_TITLE", "Example App")
+
+    settings = Settings()
+
+    assert settings.apply_openrouter_api_key == "sk-or-v1-test"
+    assert settings.apply_http_referer == "https://example.com/app"
+    assert settings.apply_x_title == "Example App"
+
+
+def test_settings_openrouter_defaults(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://u:p@h/db")
+    monkeypatch.delenv("APPLY_OPENROUTER_API_KEY", raising=False)
+    monkeypatch.delenv("APPLY_HTTP_REFERER", raising=False)
+    monkeypatch.delenv("APPLY_X_TITLE", raising=False)
+
+    settings = Settings()
+
+    assert settings.apply_openrouter_api_key == ""
+    assert settings.apply_http_referer == "https://github.com/apply-agent/apply"
+    assert settings.apply_x_title == "Apply"
 ```
 
-- [ ] **Step 2: Run test to verify failure**
+- [ ] **Step 2: Run tests to verify failure**
 
 ```bash
-cd backend && uv run pytest tests/test_config.py -v -k use_real_agents
+cd backend && uv run pytest tests/test_config.py -v
 ```
 
-Expected: FAIL with `AttributeError: 'Settings' object has no attribute 'apply_use_real_agents'` (or similar).
+Expected: 4 FAILED (the new ones), 2 PASSED (the existing ones).
 
 - [ ] **Step 3: Implement**
 
@@ -178,78 +205,122 @@ Add to `backend/src/apply/config.py`, after the `apply_daily_cap_usd` field:
 
 ```python
     apply_use_real_agents: bool = Field(default=False, alias="APPLY_USE_REAL_AGENTS")
+
+    # OpenRouter routing for Claude (OpenAI-compatible API)
+    apply_openrouter_api_key: str = Field(default="", alias="APPLY_OPENROUTER_API_KEY")
+    apply_http_referer: str = Field(
+        default="https://github.com/apply-agent/apply", alias="APPLY_HTTP_REFERER"
+    )
+    apply_x_title: str = Field(default="Apply", alias="APPLY_X_TITLE")
 ```
 
-- [ ] **Step 4: Run test to verify pass**
+- [ ] **Step 4: Run tests to verify pass**
 
 ```bash
 cd backend && uv run pytest tests/test_config.py -v
 ```
 
-Expected: 4 passed.
+Expected: 6 passed.
 
 - [ ] **Step 5: Update .env.example**
 
 Append to `.env.example`:
 
 ```
-# Phase 2a: set to true to use real LLM agents instead of stubs
+# Phase 2a — real-agents mode + OpenRouter routing
 APPLY_USE_REAL_AGENTS=false
+APPLY_OPENROUTER_API_KEY=
+APPLY_HTTP_REFERER=https://github.com/apply-agent/apply
+APPLY_X_TITLE=Apply
 ```
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add backend/src/apply/config.py backend/tests/test_config.py .env.example
-git commit -m "feat(config): add APPLY_USE_REAL_AGENTS switch"
+git commit -m "feat(config): add real-agents switch + OpenRouter routing fields"
 ```
 
 ---
 
-## Task 3: Model factory for Claude Haiku + Sonnet
+## Task 3: Model factory for Claude via OpenRouter
 
 **Files:**
 - Create: `backend/src/apply/agents/models.py`
+
+Claude is accessed through OpenRouter's OpenAI-compatible API. We build an `AsyncOpenAI` client pointing at `https://openrouter.ai/api/v1` with `HTTP-Referer` and `X-Title` default headers (OpenRouter uses these for attribution + ranking), wrap it in a Pydantic AI `OpenAIProvider`, and expose Haiku / Sonnet factories.
 
 - [ ] **Step 1: Implement model factory**
 
 Create `backend/src/apply/agents/models.py`:
 
 ```python
-"""Shared Claude model factories for Pydantic AI agents.
+"""Claude model factories routed through OpenRouter.
 
-Centralizes model IDs so upgrading (Sonnet 4.6 → 4.7, Haiku 4.5 → 5.0) is one-file.
+We use OpenRouter's OpenAI-compatible API rather than calling Anthropic
+directly. This lets us swap model providers later without code changes
+and takes advantage of OpenRouter's unified billing and fallback pool.
+
+Custom headers `HTTP-Referer` and `X-Title` are OpenRouter's attribution
+mechanism — they identify our app for rate limits and leaderboards.
 """
-from pydantic_ai.models.anthropic import AnthropicModel
+from openai import AsyncOpenAI
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.openai import OpenAIProvider
 
-# Model IDs — update in one place when Anthropic ships new models.
-HAIKU_MODEL_ID = "claude-haiku-4-5-20251001"
-SONNET_MODEL_ID = "claude-sonnet-4-6"
+from apply.config import get_settings
+
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
+# OpenRouter model IDs — see https://openrouter.ai/models for the catalog.
+# Keep in one place so upgrading is a single edit.
+HAIKU_MODEL_ID = "anthropic/claude-haiku-4.5"
+SONNET_MODEL_ID = "anthropic/claude-sonnet-4.5"
 
 
-def haiku() -> AnthropicModel:
+def _build_openrouter_client() -> AsyncOpenAI:
+    settings = get_settings()
+    api_key = settings.apply_openrouter_api_key
+    return AsyncOpenAI(
+        api_key=api_key,
+        base_url=OPENROUTER_BASE_URL,
+        default_headers={
+            # OpenAI SDK sometimes drops Authorization on non-OpenAI hosts; set explicit
+            "Authorization": f"Bearer {api_key}",
+            "HTTP-Referer": settings.apply_http_referer,
+            "X-Title": settings.apply_x_title,
+        },
+    )
+
+
+def _build_model(model_id: str) -> OpenAIModel:
+    provider = OpenAIProvider(openai_client=_build_openrouter_client())
+    return OpenAIModel(model_id, provider=provider)
+
+
+def haiku() -> OpenAIModel:
     """Cheap, fast model for structured parsing + classification."""
-    return AnthropicModel(HAIKU_MODEL_ID)
+    return _build_model(HAIKU_MODEL_ID)
 
 
-def sonnet() -> AnthropicModel:
+def sonnet() -> OpenAIModel:
     """Reasoning model for research + fit analysis."""
-    return AnthropicModel(SONNET_MODEL_ID)
+    return _build_model(SONNET_MODEL_ID)
 ```
 
-- [ ] **Step 2: Verify import**
+- [ ] **Step 2: Verify imports + construction**
 
 ```bash
-cd backend && uv run python -c "from apply.agents.models import haiku, sonnet; h = haiku(); s = sonnet(); print(type(h).__name__, type(s).__name__)"
+cd backend && uv run python -c "from apply.agents.models import haiku, sonnet; print(type(haiku()).__name__, type(sonnet()).__name__)"
 ```
 
-Expected: `AnthropicModel AnthropicModel`
+Expected: `OpenAIModel OpenAIModel`
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add backend/src/apply/agents/models.py
-git commit -m "feat(agents): Claude Haiku + Sonnet model factories"
+git commit -m "feat(agents): Claude Haiku + Sonnet factories via OpenRouter"
 ```
 
 ---
@@ -1345,9 +1416,9 @@ git commit -m "feat(api): fetch JD text via Firecrawl when real agents are enabl
 Create `backend/tests/test_integration_real_agents.py`:
 
 ```python
-"""Live integration test. Runs against real Anthropic + Tavily + Firecrawl.
+"""Live integration test. Runs against real OpenRouter + Tavily + Firecrawl.
 
-Skipped unless ANTHROPIC_API_KEY, TAVILY_API_KEY, and FIRECRAWL_API_KEY
+Skipped unless APPLY_OPENROUTER_API_KEY, TAVILY_API_KEY, and FIRECRAWL_API_KEY
 are all set. Costs ~$0.10 per run. Not run in CI.
 """
 import os
@@ -1359,7 +1430,7 @@ from apply.schemas.company import CompanyResearch
 from apply.schemas.fit import FitAnalysis
 from apply.schemas.job import JobListing
 
-REQUIRED_KEYS = ("ANTHROPIC_API_KEY", "TAVILY_API_KEY", "FIRECRAWL_API_KEY")
+REQUIRED_KEYS = ("APPLY_OPENROUTER_API_KEY", "TAVILY_API_KEY", "FIRECRAWL_API_KEY")
 _HAS_KEYS = all(os.getenv(k) for k in REQUIRED_KEYS)
 
 
@@ -1487,7 +1558,7 @@ Add a section after "Local development":
 
 Set `APPLY_USE_REAL_AGENTS=true` in `.env` and ensure these keys are set:
 
-- `ANTHROPIC_API_KEY` — Claude Haiku + Sonnet
+- `APPLY_OPENROUTER_API_KEY` — routes Claude Haiku + Sonnet through OpenRouter
 - `TAVILY_API_KEY` — web search (free tier: 1000/mo)
 - `FIRECRAWL_API_KEY` — scraping (free tier: 500/mo)
 
@@ -1499,6 +1570,19 @@ With keys set, the live integration test runs:
 ```bash
 cd backend && uv run pytest tests/test_integration_real_agents.py -v
 ```
+
+## Under the hood: LLM routing
+
+Claude is not called via the Anthropic SDK. All LLM traffic is routed
+through OpenRouter's OpenAI-compatible endpoint at
+`https://openrouter.ai/api/v1` with two attribution headers:
+
+- `HTTP-Referer` — identifies our app in OpenRouter's leaderboards
+- `X-Title` — human-readable app name
+
+Both are driven by `APPLY_HTTP_REFERER` and `APPLY_X_TITLE` so the
+binding lives in config, not code. `APPLY_OPENROUTER_API_KEY` is the
+only secret; rotating it is a one-line `.env` change.
 ```
 
 - [ ] **Step 3: Commit**
