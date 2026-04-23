@@ -65,3 +65,60 @@ async def test_real_company_researcher(monkeypatch):
     assert isinstance(result, CompanyResearch)
     assert result.company_name
     assert result.sources
+
+
+@pytest.mark.skipif(not _HAS_KEYS, reason="Missing live API keys")
+@pytest.mark.asyncio
+async def test_real_cover_letter_writer(monkeypatch):
+    monkeypatch.setenv("APPLY_USE_REAL_AGENTS", "true")
+    from apply import config as cfg
+    cfg.get_settings.cache_clear()  # type: ignore[attr-defined]
+
+    from apply.agents import runtime
+
+    result = await runtime.cover_letter_writer(
+        application_id="app-live-test",
+        company_name="Anthropic",
+        company_brief="AI safety research lab, Claude models",
+        jd_markdown=(
+            "Applied AI Engineer. 5+ years Python. "
+            "Experience with LLMs and agent frameworks. "
+            "Comfort with async systems."
+        ),
+        corpus_resume_markdown=(
+            "Senior Python engineer. Shipped multi-agent systems "
+            "with Pydantic AI + MCP. Async systems expertise."
+        ),
+        corpus_voice_samples=[
+            "I read your recent blog on agent product thinking with interest.",
+            "The thing I'd most like to talk about is how your team thinks about evaluation.",
+        ],
+    )
+
+    assert result.body_markdown
+    assert result.word_count >= 100
+    assert 0.0 <= result.voice_similarity_score <= 1.0
+
+
+@pytest.mark.skipif(not _HAS_KEYS, reason="Missing live API keys")
+@pytest.mark.asyncio
+async def test_real_screening_answerer(monkeypatch):
+    monkeypatch.setenv("APPLY_USE_REAL_AGENTS", "true")
+    from apply import config as cfg
+    cfg.get_settings.cache_clear()  # type: ignore[attr-defined]
+
+    from apply.agents import runtime
+    from apply.schemas.enums import ScreeningAnswerOrigin
+
+    result = await runtime.screening_answerer(
+        question="What excites you about applied AI work?",
+        company_name="Anthropic",
+        company_brief="AI safety research lab",
+        jd_markdown="Applied AI Engineer",
+        corpus_resume_markdown="Ships agents, cares about eval harnesses.",
+        corpus_voice_samples=["The discipline that makes good backend code makes good agent code."],
+        origin=ScreeningAnswerOrigin.PROACTIVE,
+    )
+
+    assert result.answer
+    assert result.word_count >= 30
