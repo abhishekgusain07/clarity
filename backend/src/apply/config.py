@@ -1,10 +1,18 @@
+from pathlib import Path
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Resolve .env relative to this file so config works regardless of CWD
+# (backend/ vs repo-root). config.py lives at backend/src/apply/config.py,
+# so the repo root is four parents up.
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+_ENV_CANDIDATES = (_REPO_ROOT / ".env", Path(".env"))
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=tuple(str(p) for p in _ENV_CANDIDATES),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
