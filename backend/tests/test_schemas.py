@@ -40,3 +40,50 @@ def test_application_status_values():
 
 def test_remote_type_values():
     assert RemoteType.REMOTE.value == "REMOTE"
+
+
+from apply.schemas.enums import JobSource, RemoteType
+from apply.schemas.job import JobListing
+
+
+def test_job_listing_minimal_valid():
+    listing = JobListing(
+        id="job-1",
+        source=JobSource.YC_WAAS,
+        url="https://workatastartup.com/jobs/123",
+        application_url="https://workatastartup.com/jobs/123/apply",
+        company_name="Acme AI",
+        role_title="Founding Engineer",
+        location="San Francisco, CA",
+        remote_type=RemoteType.HYBRID,
+        description_markdown="Build agents.",
+        requirements=["Python", "Agents"],
+        nice_to_haves=["LangGraph experience"],
+        raw_html_path="/tmp/jd/job-1.html",
+    )
+
+    assert listing.id == "job-1"
+    assert listing.source == JobSource.YC_WAAS
+    assert len(listing.requirements) == 2
+    assert listing.compensation_range is None
+
+
+def test_job_listing_rejects_bad_url():
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        JobListing(
+            id="job-2",
+            source=JobSource.OTHER,
+            url="not-a-url",
+            application_url="also-not-a-url",
+            company_name="X",
+            role_title="Y",
+            location="Z",
+            remote_type=RemoteType.REMOTE,
+            description_markdown="",
+            requirements=[],
+            nice_to_haves=[],
+            raw_html_path="/tmp/x",
+        )
