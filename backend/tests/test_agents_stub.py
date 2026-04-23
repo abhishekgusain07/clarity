@@ -97,3 +97,14 @@ async def test_form_fill_stub():
     assert result.fields_filled  # non-empty
     assert result.unknown_fields is not None  # may be empty list
     assert result.screenshot_path
+
+
+from apply.agents.memory_curator import memory_curator_stub
+
+
+@pytest.mark.asyncio
+async def test_memory_curator_stub():
+    result = await memory_curator_stub(application_id="app-1")
+
+    assert result["application_id"] == "app-1"
+    assert result["indexed"] is True
