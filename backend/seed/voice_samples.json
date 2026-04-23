@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "samples": [
+    {
+      "id": "sample-1",
+      "kind": "cover_letter",
+      "text": "I read your Series A announcement last week — the framing of agents as products rather than features resonated with work I've been doing independently. Over the last six months I've shipped a 7-agent research pipeline (Pydantic AI, MCP, Claude Agent SDK) with a real HITL state machine and an eval harness that tracks regression on every prompt change. I'd like to bring that same engineering discipline to your team."
+    },
+    {
+      "id": "sample-2",
+      "kind": "cover_letter",
+      "text": "Your engineering blog post on long-running agents captured exactly the problem I've been wrestling with: the difference between a chat interface and a research product. I built an applications copilot in this space because I wanted to experience that gap from the builder side. The thing I'd most like to talk about is how your team thinks about evaluation — I suspect that's where the real engineering work lives."
+    },
+    {
+      "id": "sample-3",
+      "kind": "essay",
+      "text": "The best AI systems I've built weren't the clever ones — they were the ones I could actually debug. That meant structured outputs, typed agent boundaries, and traces I could read. It meant an eval harness that fit in a Markdown report I could paste into a PR. When people ask me what I've learned from shipping agents, it's: the discipline that makes a good backend codebase also makes a good agent codebase. Nothing in the stack gets to be mystical."
+    }
+  ]
+}
