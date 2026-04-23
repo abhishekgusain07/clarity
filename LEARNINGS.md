@@ -94,3 +94,30 @@ A small bench that runs on every change is worth more than a big one
 you'll polish for three weeks and then never re-run.
 
 ---
+
+## 2026-04-23 — Voice similarity is the real differentiator
+Tags: agent-design, eval, product-decisions
+
+The Cover Letter Writer's USP isn't the cover letter — it's the
+voice-similarity score the user sees in HITL #2. Every auto-apply tool
+produces SOME text; only this one tells you how close to your actual
+writing style the draft landed.
+
+Implementation: OpenAI `text-embedding-3-small` ($0.02/1M tokens),
+max cosine similarity between the draft and each sample in the
+user's corpus. Max (not mean) because a draft that resembles ANY of
+the user's writings is in-voice; mean gets diluted across kinds (essay
+vs cover letter vs email).
+
+Voice-similarity is computed OUT-OF-BAND after the agent returns the
+draft — not as a tool call during generation. Reason: asking the LLM
+to self-assess its own voice match creates a feedback loop where the
+model reports whatever it thinks you want to hear. Embedding similarity
+is model-independent and gives you a number you can trust.
+
+**Takeaway:** when a metric will end up in a recruiter-facing
+interview story, compute it from a different system than the one
+being measured. Self-scoring is cheap theater; cross-system
+scoring is information.
+
+---

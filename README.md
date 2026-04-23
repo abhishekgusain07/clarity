@@ -5,10 +5,11 @@ produces a recruiter-quality application: company brief, fit analysis,
 bespoke cover letter, and an auto-filled application form — with human
 approval at 3 checkpoints before anything submits.
 
-> **Status:** Phase 2a complete. Real Intake, Company Researcher, and
-> Fit Analyst agents are wired behind the `APPLY_USE_REAL_AGENTS` flag.
-> Walking skeleton still runs with stubs by default. Phase 2b (eval
-> harness + baseline comparison) is next.
+> **Status:** Phase 3a complete. Real Cover Letter Writer + Screening
+> Answerer ship, backed by a custom `resume-mcp` FastMCP server and
+> OpenAI embedding-based voice similarity. HITL #2 now renders a real
+> draft that sounds like the user. Phase 3b (memory-mcp + LLM-as-judge
+> + baseline comparison table) is next.
 
 ## Architecture
 
