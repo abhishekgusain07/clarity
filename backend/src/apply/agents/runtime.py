@@ -1,22 +1,28 @@
 """Runtime switch: routes agent calls to real or stub implementations
 based on the `APPLY_USE_REAL_AGENTS` flag.
-
-The orchestrator always calls functions from this module. Whether they
-execute stubs or real LLM-backed agents is a config decision, not a
-code-path decision.
 """
 from apply.agents.company_researcher import company_researcher_stub as _cr_stub
 from apply.agents.company_researcher_real import (
     company_researcher_real as _company_researcher_real,
 )
+from apply.agents.cover_letter_writer import cover_letter_writer_stub as _cl_stub
+from apply.agents.cover_letter_writer_real import (
+    cover_letter_writer_real as _cover_letter_real,
+)
 from apply.agents.fit_analyst import fit_analyst_stub as _fa_stub
 from apply.agents.fit_analyst_real import fit_analyst_real as _fit_analyst_real
 from apply.agents.intake import intake_stub as _intake_stub
 from apply.agents.intake_real import intake_real as _intake_real
+from apply.agents.screening_answerer import screening_answerer_stub as _sa_stub
+from apply.agents.screening_answerer_real import (
+    screening_answerer_real as _screening_answerer_real,
+)
 from apply.config import get_settings
 from apply.schemas.company import CompanyResearch
+from apply.schemas.enums import ScreeningAnswerOrigin
 from apply.schemas.fit import FitAnalysis
 from apply.schemas.job import JobListing
+from apply.schemas.writing import CoverLetter, ScreeningAnswer
 
 
 def _use_real() -> bool:
@@ -48,3 +54,45 @@ async def fit_analyst(
         )
     # Stub signature differs — adapt
     return await _fa_stub(job_listing_id="job-stub", resume_markdown=resume_markdown)
+
+
+async def cover_letter_writer(
+    application_id: str,
+    company_name: str,
+    company_brief: str,
+    jd_markdown: str,
+    corpus_resume_markdown: str,
+    corpus_voice_samples: list[str],
+) -> CoverLetter:
+    if _use_real():
+        return await _cover_letter_real(
+            application_id=application_id,
+            company_name=company_name,
+            company_brief=company_brief,
+            jd_markdown=jd_markdown,
+            corpus_resume_markdown=corpus_resume_markdown,
+            corpus_voice_samples=corpus_voice_samples,
+        )
+    return await _cl_stub(application_id=application_id, company_name=company_name)
+
+
+async def screening_answerer(
+    question: str,
+    company_name: str,
+    company_brief: str,
+    jd_markdown: str,
+    corpus_resume_markdown: str,
+    corpus_voice_samples: list[str],
+    origin: ScreeningAnswerOrigin,
+) -> ScreeningAnswer:
+    if _use_real():
+        return await _screening_answerer_real(
+            question=question,
+            company_name=company_name,
+            company_brief=company_brief,
+            jd_markdown=jd_markdown,
+            corpus_resume_markdown=corpus_resume_markdown,
+            corpus_voice_samples=corpus_voice_samples,
+            origin=origin,
+        )
+    return await _sa_stub(question=question, origin=origin)
