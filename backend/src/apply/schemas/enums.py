@@ -1,0 +1,82 @@
+from enum import StrEnum
+
+
+class JobSource(StrEnum):
+    YC_WAAS = "YC_WAAS"
+    WELLFOUND = "WELLFOUND"
+    GREENHOUSE = "GREENHOUSE"
+    LEVER = "LEVER"
+    ASHBY = "ASHBY"
+    WORKDAY = "WORKDAY"
+    COMPANY_PAGE = "COMPANY_PAGE"
+    OTHER = "OTHER"
+
+
+class RemoteType(StrEnum):
+    REMOTE = "REMOTE"
+    HYBRID = "HYBRID"
+    ONSITE = "ONSITE"
+
+
+class FitVerdict(StrEnum):
+    STRONG = "STRONG"
+    MODERATE = "MODERATE"
+    STRETCH = "STRETCH"
+    WEAK = "WEAK"
+
+
+class FitStrength(StrEnum):
+    STRONG = "strong"
+    MODERATE = "moderate"
+    WEAK = "weak"
+
+
+class RecommendedAction(StrEnum):
+    PROCEED = "PROCEED"
+    PROCEED_WITH_CAUTION = "PROCEED_WITH_CAUTION"
+    SKIP = "SKIP"
+
+
+class ScreeningAnswerOrigin(StrEnum):
+    PROACTIVE = "PROACTIVE"
+    FORM_FILL_CALLBACK = "FORM_FILL_CALLBACK"
+
+
+class ApplicationStatus(StrEnum):
+    DRAFTING = "DRAFTING"
+    AWAITING_APPROVAL = "AWAITING_APPROVAL"
+    SUBMITTED = "SUBMITTED"
+    SUBMITTED_UNCONFIRMED = "SUBMITTED_UNCONFIRMED"
+    REPLIED = "REPLIED"
+    INTERVIEWED = "INTERVIEWED"
+    REJECTED = "REJECTED"
+    GHOSTED = "GHOSTED"
+    SKIPPED = "SKIPPED"
+
+
+class PipelineRunState(StrEnum):
+    INTAKE_RUNNING = "INTAKE_RUNNING"
+    RESEARCHING = "RESEARCHING"
+    AWAITING_FIT_APPROVAL = "AWAITING_FIT_APPROVAL"
+    DRAFTING = "DRAFTING"
+    AWAITING_CONTENT_APPROVAL = "AWAITING_CONTENT_APPROVAL"
+    FILLING_FORM = "FILLING_FORM"
+    AWAITING_SUBMIT_APPROVAL = "AWAITING_SUBMIT_APPROVAL"
+    SUBMITTING = "SUBMITTING"
+    COMPLETED = "COMPLETED"
+    ABANDONED = "ABANDONED"
+    ERRORED = "ERRORED"
+
+
+class HitlCheckpoint(StrEnum):
+    FIT = "FIT"
+    CONTENT = "CONTENT"
+    SUBMIT = "SUBMIT"
+
+
+class HitlDecisionType(StrEnum):
+    APPROVE = "APPROVE"
+    EDIT = "EDIT"
+    REGENERATE = "REGENERATE"
+    SKIP = "SKIP"
+    CANCEL = "CANCEL"
