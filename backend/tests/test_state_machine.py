@@ -22,7 +22,7 @@ def test_happy_path_transitions_are_valid():
         PipelineRunState.SUBMITTING,
         PipelineRunState.COMPLETED,
     ]
-    for a, b in zip(path, path[1:]):
+    for a, b in zip(path, path[1:], strict=False):
         assert can_transition(a, b), f"{a} -> {b} should be allowed"
 
 
