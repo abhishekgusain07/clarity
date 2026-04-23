@@ -11,7 +11,6 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-
 _DEFAULT_SEED_DIR = Path(__file__).resolve().parents[4] / "seed"
 
 

@@ -10,7 +10,9 @@ from apply.schemas.writing import ScreeningAnswer
 async def test_screening_answerer_real_returns_valid_answer():
     test_model = TestModel(
         custom_output_args={
-            "answer_markdown": "I'm drawn to Acme because their recent blog on agent product thinking…"
+            "answer_markdown": (
+                "I'm drawn to Acme because their recent blog on agent product thinking…"
+            )
         }
     )
 

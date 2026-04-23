@@ -14,7 +14,9 @@ async def test_embed_text_uses_openai_small_model():
     fake_embedding = [0.1, 0.2, 0.3]
 
     mock_client = AsyncMock()
-    mock_client.embeddings.create.return_value.data = [type("O", (), {"embedding": fake_embedding})()]
+    mock_client.embeddings.create.return_value.data = [
+        type("O", (), {"embedding": fake_embedding})()
+    ]
 
     with patch("apply.agents.voice_similarity._get_openai_client", return_value=mock_client):
         vec = await embed_text("hello world")

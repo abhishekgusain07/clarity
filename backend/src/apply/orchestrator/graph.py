@@ -2,8 +2,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from apply.agents import runtime
-from apply.agents.memory_curator import memory_curator_stub
 from apply.agents.form_fill import form_fill_stub
+from apply.agents.memory_curator import memory_curator_stub
 from apply.mcp_servers.resume_mcp.corpus import ResumeCorpus
 from apply.observability.langfuse_setup import get_langfuse
 from apply.orchestrator.state_machine import advance_state
@@ -23,9 +23,10 @@ class PipelineContext:
 
 
 def _load_corpus_once(ctx: PipelineContext) -> None:
-    """Populate ctx.resume_markdown and ctx.artifacts['voice_samples'] from resume-mcp's backing corpus.
+    """Populate ctx.resume_markdown and ctx.artifacts['voice_samples'].
 
-    Done eagerly at the top of RESEARCHING so downstream states have both.
+    Reads from resume-mcp's backing corpus. Done eagerly at the top of
+    RESEARCHING so downstream states have both.
     """
     if ctx.resume_markdown:
         return  # already loaded

@@ -105,7 +105,8 @@ async def test_runtime_cover_letter_writer_real_path(monkeypatch):
     from apply.agents import runtime as rt
 
     async def fake_real(**kwargs):
-        from datetime import datetime, UTC
+        from datetime import UTC, datetime
+
         from apply.schemas.writing import CoverLetter
         return CoverLetter(
             id="cl-real", application_id=kwargs["application_id"],

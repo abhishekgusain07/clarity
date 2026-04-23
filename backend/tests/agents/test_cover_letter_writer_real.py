@@ -26,16 +26,18 @@ async def test_cover_letter_writer_real_returns_valid_draft():
         assert samples  # corpus must be passed through
         return 0.77
 
-    with patch.object(mod, "compute_voice_similarity", side_effect=fake_similarity):
-        with mod._agent.override(model=test_model):
-            result = await cover_letter_writer_real(
-                application_id="app-test",
-                company_name="Acme AI",
-                company_brief="Series A agent startup",
-                jd_markdown="Founding Engineer. 5+ yrs Python, LLM experience.",
-                corpus_resume_markdown="I ship agents.",
-                corpus_voice_samples=["Sample one.", "Sample two."],
-            )
+    with (
+        patch.object(mod, "compute_voice_similarity", side_effect=fake_similarity),
+        mod._agent.override(model=test_model),
+    ):
+        result = await cover_letter_writer_real(
+            application_id="app-test",
+            company_name="Acme AI",
+            company_brief="Series A agent startup",
+            jd_markdown="Founding Engineer. 5+ yrs Python, LLM experience.",
+            corpus_resume_markdown="I ship agents.",
+            corpus_voice_samples=["Sample one.", "Sample two."],
+        )
 
     assert isinstance(result, CoverLetter)
     assert result.application_id == "app-test"
