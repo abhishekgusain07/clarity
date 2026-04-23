@@ -1,8 +1,10 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
+import { useEffect, useState } from 'react'
 import Footer from '../components/Footer'
 import Header from '../components/Header'
+import { getHealth } from '#/lib/api'
 
 import appCss from '../styles.css?url'
 
@@ -38,6 +40,14 @@ export const Route = createRootRoute({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const [backend, setBackend] = useState<'unknown' | 'up' | 'down'>('unknown')
+
+  useEffect(() => {
+    getHealth()
+      .then(() => setBackend('up'))
+      .catch(() => setBackend('down'))
+  }, [])
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -46,6 +56,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body className="font-sans antialiased [overflow-wrap:anywhere] selection:bg-[var(--accent-soft)]">
         <Header />
+        <div className="page-wrap py-1 text-right">
+          <span
+            className={`text-sm ${backend === 'up' ? 'text-green-600' : 'text-red-600'}`}
+          >
+            backend: {backend}
+          </span>
+        </div>
         {children}
         <Footer />
         <TanStackDevtools
