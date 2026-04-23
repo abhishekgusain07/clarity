@@ -11,7 +11,12 @@ export default function Header() {
         >
           Clarity
         </Link>
-        <ThemeToggle />
+        <div className="flex items-center gap-4">
+          <Link to="/applications" className="text-sm hover:underline">
+            Applications
+          </Link>
+          <ThemeToggle />
+        </div>
       </nav>
     </header>
   )
