@@ -1,6 +1,6 @@
 """`apply bench` orchestrator — runs all three bench runners and writes a report."""
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -72,7 +72,7 @@ async def run_bench() -> Path:
         company_brief_fn=_company_brief,
     )
 
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     md = render_bench_report(
         intake=intake_results,
         company=company_results,
