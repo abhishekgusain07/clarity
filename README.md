@@ -73,6 +73,26 @@ With keys set, the live integration test runs:
 cd backend && uv run pytest tests/test_integration_real_agents.py -v
 ```
 
+### Running the bench
+
+With `APPLY_USE_REAL_AGENTS=true` and all API keys set:
+
+```bash
+cd backend && uv run apply bench
+```
+
+Hits real LLMs + Tavily + Firecrawl. Takes ~60-120 seconds. Writes a
+Markdown report to `backend/eval/reports/bench-<timestamp>.md`. Reports
+are gitignored — commit a specific report if you want to trend-compare.
+
+The bench covers:
+- Intake field-extraction recall on 5 JDs
+- Company Research fact recall
+- Fit Analyst Pearson correlation with expert-labeled scores
+
+Full baseline comparison (Apply vs Claude one-shot vs Perplexity vs
+LazyApply) needs the real Cover Letter Writer — that lands in Phase 3b.
+
 ## Under the hood: LLM routing
 
 Claude is not called via the Anthropic SDK. All LLM traffic is routed

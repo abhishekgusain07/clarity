@@ -70,3 +70,27 @@ inside agent code. One clean env flag, one routing file, one line in every
 test to flip it.
 
 ---
+
+## 2026-04-23 — Smallest honest eval beats biggest imagined one
+Tags: eval, product-decisions, architecture
+
+Phase 2b scope shrank from "10 JDs × 4 systems × 3 blind human raters"
+(the spec's money shot) to "5 JDs, 2 resumes, 5 expert-labeled fit
+pairs, measured against the 3 real research agents." The money-shot
+baseline comparison needs cover letters — and Cover Letter Writer is
+still a stub. Writing the baseline comparison now against stub output
+would produce a polished-looking artifact with no signal.
+
+Instead: ship what can actually measure something truthful. The
+research-phase bench produces a Markdown report you can check into
+PR descriptions, trend against over time, and use to detect regressions
+when the prompts change. The baseline comparison moves to Phase 3b,
+where the Cover Letter Writer is real and the comparison carries
+information.
+
+**Takeaway:** when the full eval you want needs a component you don't
+have yet, the honest move is to ship the subset that's measurable now.
+A small bench that runs on every change is worth more than a big one
+you'll polish for three weeks and then never re-run.
+
+---
