@@ -1,11 +1,9 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from apply.agents.company_researcher import company_researcher_stub
+from apply.agents import runtime
 from apply.agents.cover_letter_writer import cover_letter_writer_stub
-from apply.agents.fit_analyst import fit_analyst_stub
 from apply.agents.form_fill import form_fill_stub
-from apply.agents.intake import intake_stub
 from apply.agents.memory_curator import memory_curator_stub
 from apply.observability.langfuse_setup import get_langfuse
 from apply.orchestrator.state_machine import advance_state
@@ -20,22 +18,23 @@ class PipelineContext:
     state: PipelineRunState
     artifacts: dict[str, Any] = field(default_factory=dict)
     cost_accumulated_usd: float = 0.0
+    # Phase 2a additions (optional, defaulted for backwards compat)
+    jd_text: str = ""
+    resume_markdown: str = "[stub resume]"
 
 
 async def run_to_next_checkpoint(ctx: PipelineContext) -> None:
-    """Advance the pipeline until the next HITL gate or a terminal state.
-
-    Each agent writes its artifact to `ctx.artifacts` and the state machine
-    is advanced between agents. On reaching an AWAITING_* state or a
-    terminal state, this function returns; the caller persists and waits.
-    """
     lf = get_langfuse()
     trace = lf.trace(name="pipeline_run", id=ctx.run_id)
 
     while True:
         if ctx.state == PipelineRunState.INTAKE_RUNNING:
             with trace.span(name="intake"):
-                listing = await intake_stub(url=ctx.jd_url)
+                listing = await runtime.intake(
+                    url=ctx.jd_url,
+                    jd_text=ctx.jd_text,
+                    raw_html_path=f"/tmp/apply/{ctx.run_id}.html",
+                )
             ctx.artifacts["job_listing"] = listing.model_dump(mode="json")
             ctx.cost_accumulated_usd += 0.001
             ctx.state = advance_state(ctx.state, PipelineRunState.RESEARCHING)
@@ -44,11 +43,14 @@ async def run_to_next_checkpoint(ctx: PipelineContext) -> None:
         if ctx.state == PipelineRunState.RESEARCHING:
             listing = ctx.artifacts["job_listing"]
             with trace.span(name="company_researcher"):
-                research = await company_researcher_stub(company_name=listing["company_name"])
+                research = await runtime.company_researcher(
+                    company_name=listing["company_name"],
+                )
             with trace.span(name="fit_analyst"):
-                fit = await fit_analyst_stub(
-                    job_listing_id=listing["id"],
-                    resume_markdown="[stub resume]",
+                fit = await runtime.fit_analyst(
+                    resume_markdown=ctx.resume_markdown,
+                    jd_markdown=listing["description_markdown"],
+                    company_brief=f"{research.company_name}: {research.signal_score:.2f} signal",
                 )
             ctx.artifacts["company_research"] = research.model_dump(mode="json")
             ctx.artifacts["fit_analysis"] = fit.model_dump(mode="json")

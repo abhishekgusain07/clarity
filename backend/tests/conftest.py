@@ -15,6 +15,21 @@ def event_loop():
     loop.close()
 
 
+@pytest.fixture(autouse=True)
+def _isolate_settings(monkeypatch):
+    """Isolate tests from the repo-root `.env` real-agents flag.
+
+    Tests default to stubs (APPLY_USE_REAL_AGENTS=false) unless a specific
+    test explicitly opts in via its own monkeypatch. Also clears the
+    `get_settings` lru_cache around every test so env changes take effect
+    and cached state never leaks across tests.
+    """
+    monkeypatch.setenv("APPLY_USE_REAL_AGENTS", "false")
+    get_settings.cache_clear()  # type: ignore[attr-defined]
+    yield
+    get_settings.cache_clear()  # type: ignore[attr-defined]
+
+
 @pytest.fixture
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
     settings = get_settings()
