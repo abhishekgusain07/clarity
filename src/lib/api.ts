@@ -1,3 +1,10 @@
+import type {
+  ApproveRequest,
+  CreateApplicationResponse,
+  HealthResponse,
+  RunResponse,
+} from "#/lib/types";
+
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -16,6 +23,33 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   return response.json() as Promise<T>;
 }
 
-export async function getHealth(): Promise<{ status: string; version: string }> {
+export async function getHealth(): Promise<HealthResponse> {
   return apiFetch("/health");
+}
+
+export async function createApplication(
+  jdUrl: string,
+): Promise<CreateApplicationResponse> {
+  return apiFetch("/applications", {
+    method: "POST",
+    body: JSON.stringify({ jd_url: jdUrl }),
+  });
+}
+
+export async function getRun(runId: string): Promise<RunResponse> {
+  return apiFetch(`/runs/${runId}`);
+}
+
+export async function approveRun(
+  runId: string,
+  body: ApproveRequest,
+): Promise<{ run_id: string; new_state: string }> {
+  return apiFetch(`/runs/${runId}/approve`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function sseUrl(runId: string): string {
+  return `${API_BASE}/runs/${runId}/events`;
 }
