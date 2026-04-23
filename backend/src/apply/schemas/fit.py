@@ -5,7 +5,7 @@ from apply.schemas.enums import FitStrength, FitVerdict, RecommendedAction
 
 class FitPoint(BaseModel):
     dimension: str
-    evidence_resume: str | None
+    evidence_resume: str | None = None
     evidence_jd: str
     strength: FitStrength
 

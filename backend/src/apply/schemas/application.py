@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, Field
 
 from apply.schemas.company import CompanyResearch
 from apply.schemas.enums import (
@@ -17,7 +17,6 @@ from apply.schemas.writing import CoverLetter, ScreeningAnswer
 class CostBreakdown(BaseModel):
     per_agent_usd: dict[str, float] = Field(default_factory=dict)
 
-    @computed_field  # type: ignore[misc]
     @property
     def total_usd(self) -> float:
         return sum(self.per_agent_usd.values())
