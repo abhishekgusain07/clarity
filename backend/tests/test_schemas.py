@@ -87,3 +87,62 @@ def test_job_listing_rejects_bad_url():
             nice_to_haves=[],
             raw_html_path="/tmp/x",
         )
+
+
+from apply.schemas.company import (
+    BlogPost,
+    CompanyResearch,
+    Founder,
+    NewsItem,
+    Round,
+    Source,
+)
+
+
+def test_company_research_with_all_subtypes():
+    research = CompanyResearch(
+        company_name="Acme AI",
+        funding_stage="Series A",
+        last_round=Round(stage="Series A", amount_usd=10_000_000, date_iso="2025-11-01"),
+        team_size="20-50",
+        founders=[Founder(name="A. Smith", background="ex-Google, Stanford PhD")],
+        recent_news=[
+            NewsItem(
+                title="Acme raises Series A",
+                url="https://techcrunch.com/acme-a",
+                date_iso="2025-11-01",
+                summary="$10M to build agents",
+            )
+        ],
+        recent_blog_posts=[
+            BlogPost(
+                title="Why we build agents",
+                url="https://acme.ai/blog/agents",
+                summary="Product philosophy",
+            )
+        ],
+        tech_stack_hints=["Python", "LangGraph"],
+        signal_score=0.85,
+        sources=[Source(url="https://acme.ai", title="Acme homepage", trust_score=0.9)],
+    )
+
+    assert research.company_name == "Acme AI"
+    assert research.signal_score == 0.85
+    assert len(research.founders) == 1
+    assert research.last_round is not None
+
+
+def test_signal_score_bounded():
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        CompanyResearch(
+            company_name="X",
+            founders=[],
+            recent_news=[],
+            recent_blog_posts=[],
+            tech_stack_hints=[],
+            signal_score=1.5,  # invalid: > 1.0
+            sources=[],
+        )
