@@ -46,3 +46,21 @@ async def test_fit_analyst_stub_returns_valid_analysis():
         RecommendedAction.SKIP,
     ]
     assert analysis.reasoning
+
+
+from apply.agents.cover_letter_writer import cover_letter_writer_stub
+
+
+@pytest.mark.asyncio
+async def test_cover_letter_writer_stub():
+    letter = await cover_letter_writer_stub(
+        application_id="app-1",
+        company_name="Acme AI",
+    )
+
+    assert letter.application_id == "app-1"
+    assert letter.draft_version == 1
+    assert letter.body_markdown
+    assert letter.word_count > 0
+    assert len(letter.references_company_specifics) > 0
+    assert 0.0 <= letter.voice_similarity_score <= 1.0
