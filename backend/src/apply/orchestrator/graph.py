@@ -2,9 +2,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from apply.agents import runtime
-from apply.agents.cover_letter_writer import cover_letter_writer_stub
-from apply.agents.form_fill import form_fill_stub
 from apply.agents.memory_curator import memory_curator_stub
+from apply.agents.form_fill import form_fill_stub
+from apply.mcp_servers.resume_mcp.corpus import ResumeCorpus
 from apply.observability.langfuse_setup import get_langfuse
 from apply.orchestrator.state_machine import advance_state
 from apply.schemas.enums import PipelineRunState
@@ -18,9 +18,21 @@ class PipelineContext:
     state: PipelineRunState
     artifacts: dict[str, Any] = field(default_factory=dict)
     cost_accumulated_usd: float = 0.0
-    # Phase 2a additions (optional, defaulted for backwards compat)
     jd_text: str = ""
-    resume_markdown: str = "[stub resume]"
+    resume_markdown: str = ""
+
+
+def _load_corpus_once(ctx: PipelineContext) -> None:
+    """Populate ctx.resume_markdown and ctx.artifacts['voice_samples'] from resume-mcp's backing corpus.
+
+    Done eagerly at the top of RESEARCHING so downstream states have both.
+    """
+    if ctx.resume_markdown:
+        return  # already loaded
+    corpus = ResumeCorpus()
+    ctx.resume_markdown = corpus.resume_markdown()
+    samples = corpus.list_voice_samples()
+    ctx.artifacts["voice_samples"] = [s.text for s in samples]
 
 
 async def run_to_next_checkpoint(ctx: PipelineContext) -> None:
@@ -41,6 +53,7 @@ async def run_to_next_checkpoint(ctx: PipelineContext) -> None:
             continue
 
         if ctx.state == PipelineRunState.RESEARCHING:
+            _load_corpus_once(ctx)
             listing = ctx.artifacts["job_listing"]
             with trace.span(name="company_researcher"):
                 research = await runtime.company_researcher(
@@ -59,14 +72,26 @@ async def run_to_next_checkpoint(ctx: PipelineContext) -> None:
             return
 
         if ctx.state == PipelineRunState.DRAFTING:
+            _load_corpus_once(ctx)
             listing = ctx.artifacts["job_listing"]
+            research = ctx.artifacts.get("company_research", {})
+            samples: list[str] = ctx.artifacts.get("voice_samples", [])
+            brief = (
+                f"{research.get('company_name', listing['company_name'])} — "
+                f"stage: {research.get('funding_stage') or 'unknown'}, "
+                f"signal: {research.get('signal_score', 0):.2f}"
+            )
             with trace.span(name="cover_letter_writer"):
-                letter = await cover_letter_writer_stub(
+                letter = await runtime.cover_letter_writer(
                     application_id=ctx.application_id,
                     company_name=listing["company_name"],
+                    company_brief=brief,
+                    jd_markdown=listing["description_markdown"],
+                    corpus_resume_markdown=ctx.resume_markdown,
+                    corpus_voice_samples=samples,
                 )
             ctx.artifacts["cover_letter"] = letter.model_dump(mode="json")
-            ctx.cost_accumulated_usd += 0.03
+            ctx.cost_accumulated_usd += 0.05
             ctx.state = advance_state(ctx.state, PipelineRunState.AWAITING_CONTENT_APPROVAL)
             return
 

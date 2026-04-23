@@ -33,7 +33,11 @@ async def test_run_from_fit_approval_stops_at_content_checkpoint():
         state=PipelineRunState.DRAFTING,
     )
     # Seed the upstream artifact needed by cover_letter_writer
-    ctx.artifacts["job_listing"] = {"id": "job-stub", "company_name": "Acme AI"}
+    ctx.artifacts["job_listing"] = {
+        "id": "job-stub",
+        "company_name": "Acme AI",
+        "description_markdown": "Founding Engineer role.",
+    }
 
     await run_to_next_checkpoint(ctx)
 
