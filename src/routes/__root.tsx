@@ -21,12 +21,12 @@ export const Route = createRootRoute({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'Clarity — Research Intelligence',
+        title: 'Apply — Autonomous Job Application Agent',
       },
       {
         name: 'description',
         content:
-          'Research intelligence for decisions that matter. Six specialist agents research in parallel and deliver a citation-backed brief.',
+          'Paste a job URL and get a recruiter-quality application — company research, fit analysis, bespoke cover letter, and auto-filled form, with human approval.',
       },
     ],
     links: [
