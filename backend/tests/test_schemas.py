@@ -146,3 +146,53 @@ def test_signal_score_bounded():
             signal_score=1.5,  # invalid: > 1.0
             sources=[],
         )
+
+
+from apply.schemas.enums import FitStrength, FitVerdict, RecommendedAction
+from apply.schemas.fit import FitAnalysis, FitPoint
+
+
+def test_fit_analysis_minimal_valid():
+    analysis = FitAnalysis(
+        overall_score=72,
+        verdict=FitVerdict.MODERATE,
+        matches=[
+            FitPoint(
+                dimension="Python",
+                evidence_resume="5 years Python, primary language",
+                evidence_jd="Strong Python required",
+                strength=FitStrength.STRONG,
+            )
+        ],
+        stretches=[
+            FitPoint(
+                dimension="LangGraph",
+                evidence_resume=None,
+                evidence_jd="Experience with LangGraph preferred",
+                strength=FitStrength.WEAK,
+            )
+        ],
+        gaps=[],
+        reasoning="Solid Python, thin on LangGraph but learnable.",
+        recommended_action=RecommendedAction.PROCEED,
+    )
+
+    assert analysis.overall_score == 72
+    assert analysis.verdict == FitVerdict.MODERATE
+    assert analysis.recommended_action == RecommendedAction.PROCEED
+
+
+def test_fit_score_must_be_0_to_100():
+    import pytest
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        FitAnalysis(
+            overall_score=150,  # invalid
+            verdict=FitVerdict.STRONG,
+            matches=[],
+            stretches=[],
+            gaps=[],
+            reasoning="",
+            recommended_action=RecommendedAction.PROCEED,
+        )
