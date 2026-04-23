@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from sse_starlette.sse import EventSourceResponse
 
+from apply.api.sse import sse_stream
 from apply.db.session import get_session
 from apply.orchestrator.run_repository import RunRepository
 
@@ -34,3 +36,8 @@ async def get_run(
         cost_accumulated_usd=run.cost_accumulated_usd,
         artifacts=run.artifacts,
     )
+
+
+@router.get("/{run_id}/events")
+async def run_events(run_id: str) -> EventSourceResponse:
+    return EventSourceResponse(sse_stream(run_id))
