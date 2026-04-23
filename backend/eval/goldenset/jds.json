@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "yc-001",
+      "url": "https://www.workatastartup.com/jobs",
+      "note_for_executor": "Pick any current public YC WaaS listing for an AI Engineer / Founding Engineer role. Fill in the expected_* blocks below from the real listing content.",
+      "expected_fields": {
+        "source": "YC_WAAS",
+        "company_name": "FILL_AT_RUN_TIME",
+        "role_title": "FILL_AT_RUN_TIME",
+        "location": "FILL_AT_RUN_TIME",
+        "remote_type": "FILL_AT_RUN_TIME",
+        "min_requirements_count": 3,
+        "min_nice_to_haves_count": 1
+      },
+      "expected_company_facts": [
+        "company name appears",
+        "YC batch or Series funding stage implied"
+      ]
+    },
+    {
+      "id": "anthropic-001",
+      "url": "https://www.anthropic.com/careers",
+      "note_for_executor": "Pick a current public Anthropic engineering listing. If https://www.anthropic.com/careers lists openings, grab one — else substitute a Greenhouse-hosted listing the Anthropic careers page links to.",
+      "expected_fields": {
+        "source": "GREENHOUSE",
+        "company_name": "Anthropic",
+        "role_title": "FILL_AT_RUN_TIME",
+        "location": "FILL_AT_RUN_TIME",
+        "remote_type": "FILL_AT_RUN_TIME",
+        "min_requirements_count": 3,
+        "min_nice_to_haves_count": 0
+      },
+      "expected_company_facts": [
+        "Anthropic",
+        "founded 2021",
+        "AI safety"
+      ]
+    },
+    {
+      "id": "lever-001",
+      "url": "https://jobs.lever.co/",
+      "note_for_executor": "Pick any current public Lever-hosted engineering role (e.g., any tech startup using jobs.lever.co). Fill expected_* from the real listing.",
+      "expected_fields": {
+        "source": "LEVER",
+        "company_name": "FILL_AT_RUN_TIME",
+        "role_title": "FILL_AT_RUN_TIME",
+        "location": "FILL_AT_RUN_TIME",
+        "remote_type": "FILL_AT_RUN_TIME",
+        "min_requirements_count": 2,
+        "min_nice_to_haves_count": 0
+      },
+      "expected_company_facts": []
+    },
+    {
+      "id": "greenhouse-001",
+      "url": "https://boards.greenhouse.io/",
+      "note_for_executor": "Pick any current public Greenhouse-hosted engineering role. Stripe, Notion, Linear, Figma all use Greenhouse. Fill expected_* from the real listing.",
+      "expected_fields": {
+        "source": "GREENHOUSE",
+        "company_name": "FILL_AT_RUN_TIME",
+        "role_title": "FILL_AT_RUN_TIME",
+        "location": "FILL_AT_RUN_TIME",
+        "remote_type": "FILL_AT_RUN_TIME",
+        "min_requirements_count": 3,
+        "min_nice_to_haves_count": 0
+      },
+      "expected_company_facts": []
+    },
+    {
+      "id": "bad-fit-001",
+      "url": "https://jobs.lever.co/",
+      "note_for_executor": "Pick a role DELIBERATELY outside a software engineer's wheelhouse — e.g., a Marketing Manager at an e-commerce company, or a Warehouse Logistics Lead. This is the 'should trigger SKIP' case for Fit Analyst.",
+      "expected_fields": {
+        "source": "LEVER",
+        "company_name": "FILL_AT_RUN_TIME",
+        "role_title": "FILL_AT_RUN_TIME",
+        "location": "FILL_AT_RUN_TIME",
+        "remote_type": "FILL_AT_RUN_TIME",
+        "min_requirements_count": 2,
+        "min_nice_to_haves_count": 0
+      },
+      "expected_company_facts": []
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "resume_id": "resume-python-ai",
+      "jd_id": "yc-001",
+      "expert_score": 82,
+      "expected_verdict": "STRONG",
+      "expected_action": "PROCEED",
+      "rationale": "Strong Python + recent LLM/agent shipping matches a YC AI Engineer role directly."
+    },
+    {
+      "resume_id": "resume-python-ai",
+      "jd_id": "anthropic-001",
+      "expert_score": 70,
+      "expected_verdict": "MODERATE",
+      "expected_action": "PROCEED",
+      "rationale": "Solid Python + agent work. Gap may be formal ML research / safety specialization depending on the exact role."
+    },
+    {
+      "resume_id": "resume-generalist",
+      "jd_id": "yc-001",
+      "expert_score": 45,
+      "expected_verdict": "STRETCH",
+      "expected_action": "PROCEED_WITH_CAUTION",
+      "rationale": "Strong senior eng fundamentals but zero LLM/agent work. Plausible only with aggressive framing."
+    },
+    {
+      "resume_id": "resume-generalist",
+      "jd_id": "anthropic-001",
+      "expert_score": 30,
+      "expected_verdict": "WEAK",
+      "expected_action": "SKIP",
+      "rationale": "No production LLM work AND the role implies ML depth. Not a realistic fit."
+    },
+    {
+      "resume_id": "resume-python-ai",
+      "jd_id": "bad-fit-001",
+      "expert_score": 15,
+      "expected_verdict": "WEAK",
+      "expected_action": "SKIP",
+      "rationale": "Engineer resume for a non-engineering role. Hard SKIP."
+    }
+  ]
+}

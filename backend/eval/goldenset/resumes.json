@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "resume-python-ai",
+      "label": "Strong Python + recent AI/agents experience",
+      "markdown": "# Alex Ray\nalex.ray@example.com · San Francisco, CA\n\n## Summary\n6 years Python. Last 2 years on LLM-backed products — shipped a RAG-driven internal search tool and a multi-agent research pipeline (LangGraph). Comfortable with async systems, Postgres, and production observability.\n\n## Experience\n\n**Senior Engineer — Mid-size SaaS** (2023-present)\n- Designed and shipped an LLM-powered support-triage agent (Claude + Pinecone). Reduced first-response time by 38%.\n- Built async data-ingestion pipeline handling 40M events/day on asyncpg + Redis.\n- Owns production observability stack (OpenTelemetry → Grafana).\n\n**Engineer — Early-stage startup** (2020-2023)\n- 4 years primary-language Python across backend, ML infra, and DX tooling.\n- Led migration from Flask → FastAPI; cut p95 latency by 22%.\n- Mentored 3 junior engineers.\n\n## Skills\nPython (expert), async/await, FastAPI, SQLAlchemy, Postgres, Redis, LangChain, LangGraph, OpenAI/Anthropic SDKs, Docker, AWS.\n\n## Education\nBS Computer Science — State University (2019)."
+    },
+    {
+      "id": "resume-generalist",
+      "label": "Mid-career generalist, no explicit AI/LLM work",
+      "markdown": "# Jamie Kim\njamie.kim@example.com · Austin, TX\n\n## Summary\n7 years backend engineering across Ruby, Go, and some Python. Strong on systems design and database work. No production LLM experience yet but curious and reading in the space.\n\n## Experience\n\n**Staff Engineer — Fintech scale-up** (2021-present)\n- Led re-architecture of payments service (Rails → Go). Improved throughput 4x.\n- Designed multi-region Postgres replication strategy.\n- On-call leader for a 12-person infrastructure team.\n\n**Senior Engineer — Logistics SaaS** (2017-2021)\n- 4 years primary-language Ruby. Built routing-optimization service.\n- Migrated monolith DB from single Postgres to sharded setup.\n\n## Skills\nGo, Ruby, some Python, Postgres (expert), Kafka, Kubernetes, AWS, systems design.\n\n## Education\nBS Computer Engineering — State University (2017)."
+    }
+  ]
+}
