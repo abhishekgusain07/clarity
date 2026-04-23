@@ -81,3 +81,19 @@ async def test_screening_answerer_stub():
     assert answer.answer
     assert answer.word_count > 0
     assert answer.drafted_by == ScreeningAnswerOrigin.PROACTIVE
+
+
+from apply.agents.form_fill import FormFillResult, form_fill_stub
+
+
+@pytest.mark.asyncio
+async def test_form_fill_stub():
+    result = await form_fill_stub(
+        application_url="https://workatastartup.com/jobs/123/apply",
+        cover_letter_body="Dear team, ...",
+    )
+
+    assert isinstance(result, FormFillResult)
+    assert result.fields_filled  # non-empty
+    assert result.unknown_fields is not None  # may be empty list
+    assert result.screenshot_path
