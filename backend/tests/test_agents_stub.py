@@ -64,3 +64,20 @@ async def test_cover_letter_writer_stub():
     assert letter.word_count > 0
     assert len(letter.references_company_specifics) > 0
     assert 0.0 <= letter.voice_similarity_score <= 1.0
+
+
+from apply.agents.screening_answerer import screening_answerer_stub
+from apply.schemas.enums import ScreeningAnswerOrigin
+
+
+@pytest.mark.asyncio
+async def test_screening_answerer_stub():
+    answer = await screening_answerer_stub(
+        question="Why do you want to work at Acme AI?",
+        origin=ScreeningAnswerOrigin.PROACTIVE,
+    )
+
+    assert answer.question == "Why do you want to work at Acme AI?"
+    assert answer.answer
+    assert answer.word_count > 0
+    assert answer.drafted_by == ScreeningAnswerOrigin.PROACTIVE
