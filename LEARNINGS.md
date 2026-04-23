@@ -47,3 +47,26 @@ The cost of the skeleton is a fraction of the cost of integration bugs
 discovered in week 4.
 
 ---
+
+## 2026-04-23 — Stub/real runtime switch isolates skeleton from LLM dependencies
+Tags: architecture, agent-design, product-decisions
+
+Shipped Phase 2a (real Intake + Company Researcher + Fit Analyst) behind an
+`APPLY_USE_REAL_AGENTS` env flag. The orchestrator only ever calls
+`apply.agents.runtime.*`; the runtime module decides stub vs real based
+on config at the point of call.
+
+Why this mattered:
+- Unit tests don't need API keys or network
+- The skeleton demo still works when keys aren't configured
+- Future chunks can replace agents one at a time the same way — the
+  runtime module grows one entry per replacement
+- VCR cassettes capture LLM shapes once, so tests stay fast and
+  deterministic even as we add real calls
+
+**Takeaway:** when adding a layer that has two implementations (stub/real,
+local/cloud, batch/stream), put the switch at the module boundary, not
+inside agent code. One clean env flag, one routing file, one line in every
+test to flip it.
+
+---
