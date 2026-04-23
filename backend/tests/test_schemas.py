@@ -229,3 +229,50 @@ def test_screening_answer_valid():
     )
 
     assert answer.drafted_by == ScreeningAnswerOrigin.PROACTIVE
+
+
+from datetime import datetime
+
+from apply.schemas.application import (
+    Application,
+    CostBreakdown,
+    HitlDecision,
+    Outcome,
+    PipelineRun,
+)
+from apply.schemas.enums import (
+    ApplicationStatus,
+    HitlCheckpoint,
+    HitlDecisionType,
+    PipelineRunState,
+)
+
+
+def test_cost_breakdown_totals():
+    breakdown = CostBreakdown(
+        per_agent_usd={"intake": 0.001, "company_researcher": 0.05, "fit_analyst": 0.02},
+    )
+    assert abs(breakdown.total_usd - 0.071) < 1e-6
+
+
+def test_pipeline_run_valid():
+    run = PipelineRun(
+        id="run-1",
+        application_id="app-1",
+        state=PipelineRunState.AWAITING_FIT_APPROVAL,
+        cost_accumulated_usd=0.05,
+        created_at=datetime(2026, 4, 23),
+        updated_at=datetime(2026, 4, 23),
+    )
+    assert run.state == PipelineRunState.AWAITING_FIT_APPROVAL
+
+
+def test_hitl_decision_valid():
+    decision = HitlDecision(
+        checkpoint=HitlCheckpoint.FIT,
+        decision=HitlDecisionType.APPROVE,
+        user_edits=None,
+        notes=None,
+        timestamp=datetime(2026, 4, 23),
+    )
+    assert decision.checkpoint == HitlCheckpoint.FIT
