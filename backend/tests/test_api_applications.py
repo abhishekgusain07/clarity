@@ -157,3 +157,40 @@ async def test_list_applications_returns_summaries(app, db_session):
     assert item["status"] == "SUBMITTED"
     assert item["fit_score"] == 78
     assert item["cost_usd"] == pytest.approx(0.051)
+
+
+@pytest.mark.asyncio
+async def test_update_outcome_new(app, db_session):
+    from apply.db.models import Application, User
+
+    db_session.add(User(id="user-local", email="l@e.co", name="L", profile_json={}))
+    await db_session.flush()
+    db_session.add(Application(
+        id="app-2", user_id="user-local", status="SUBMITTED",
+        job_listing_json={"company_name": "Acme", "role_title": "E"},
+    ))
+    await db_session.commit()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.patch(
+            "/applications/app-2/outcome",
+            json={"status": "REPLIED", "notes": "Recruiter reached out"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["application_id"] == "app-2"
+    assert body["status"] == "REPLIED"
+    assert body["notes"] == "Recruiter reached out"
+
+
+@pytest.mark.asyncio
+async def test_update_outcome_404_on_unknown_app(app, db_session):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.patch(
+            "/applications/nonexistent/outcome",
+            json={"status": "REPLIED"},
+        )
+    assert response.status_code == 404

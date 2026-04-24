@@ -168,6 +168,72 @@ async def list_applications(
     return ListApplicationsResponse(items=items, total=len(items))
 
 
+from typing import Literal
+
+
+class OutcomeUpdateRequest(BaseModel):
+    status: Literal["SUBMITTED", "REPLIED", "INTERVIEWED", "REJECTED", "GHOSTED", "OFFERED"]
+    notes: str | None = None
+    next_step: str | None = None
+
+
+class OutcomeUpdateResponse(BaseModel):
+    application_id: str
+    outcome_id: str
+    status: str
+    notes: str | None
+    next_step: str | None
+
+
+@router.patch("/{application_id}/outcome", response_model=OutcomeUpdateResponse)
+async def update_outcome(
+    application_id: str,
+    req: OutcomeUpdateRequest,
+    session: AsyncSession = Depends(get_session),
+) -> OutcomeUpdateResponse:
+    from sqlalchemy import select
+    from fastapi import HTTPException
+    import uuid
+
+    from apply.db.models import Application as ApplicationRow
+    from apply.db.models import Outcome as OutcomeRow
+
+    result = await session.execute(
+        select(ApplicationRow).where(ApplicationRow.id == application_id)
+    )
+    app_row = result.scalar_one_or_none()
+    if app_row is None:
+        raise HTTPException(status_code=404, detail=f"application {application_id} not found")
+
+    # Pull company + url from the stored JSON listing for denormalization
+    listing = app_row.job_listing_json or {}
+
+    outcome_id = f"out-{uuid.uuid4().hex[:8]}"
+    outcome_row = OutcomeRow(
+        id=outcome_id,
+        application_id=application_id,
+        status=req.status,
+        notes=req.notes,
+        next_step=req.next_step,
+        company_name=listing.get("company_name"),
+        jd_url=listing.get("url"),
+        cover_letter_text=(app_row.cover_letter_json or {}).get("body_markdown"),
+    )
+    session.add(outcome_row)
+
+    # Also update the application's top-level status for display consistency
+    app_row.status = req.status
+    await session.commit()
+
+    return OutcomeUpdateResponse(
+        application_id=application_id,
+        outcome_id=outcome_id,
+        status=req.status,
+        notes=req.notes,
+        next_step=req.next_step,
+    )
+
+
 async def _drive_pipeline(run_id: str, ctx: PipelineContext) -> None:
     bus = get_event_bus()
     await bus.publish(run_id, {"type": "run_started", "state": ctx.state.value})
