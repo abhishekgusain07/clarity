@@ -39,3 +39,6 @@ backend/data/
 
 # Generated eval reports
 backend/eval/reports/bench-*.md
+
+# Playwright MCP runtime artifacts
+backend/.playwright-mcp/

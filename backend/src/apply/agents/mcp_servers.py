@@ -28,3 +28,22 @@ def firecrawl_mcp() -> MCPServerStdio:
         args=["-y", "firecrawl-mcp"],
         env={"FIRECRAWL_API_KEY": settings.firecrawl_api_key},
     )
+
+
+def playwright_mcp() -> MCPServerStdio:
+    """Microsoft's official Playwright MCP server.
+
+    Runs Chromium as a Node subprocess. On first run, Playwright downloads
+    Chromium (~100MB); cached thereafter.
+    """
+    import os
+    args = ["-y", "@playwright/mcp@latest", "--headless"]
+    # Allow file:// URLs when running against local HTML test fixtures.
+    # Safe in dev; avoid enabling in production against arbitrary user input.
+    if os.getenv("APPLY_PLAYWRIGHT_ALLOW_FILE_ACCESS") == "true":
+        args.append("--allow-unrestricted-file-access")
+    return MCPServerStdio(
+        command="npx",
+        args=args,
+        env={},
+    )
