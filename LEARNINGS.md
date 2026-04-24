@@ -121,3 +121,28 @@ being measured. Self-scoring is cheap theater; cross-system
 scoring is information.
 
 ---
+
+## 2026-04-24 — Cross-model judging is the only honest eval
+Tags: eval, product-decisions, architecture
+
+Shipped Phase 3b: memory-mcp, Memory Curator real, LLM-as-judge for
+cover letters (GPT-4.1 via OpenRouter), and a 2-way baseline comparison
+(full Apply pipeline vs Claude-one-shot).
+
+Critical design decision: judge and writer are DIFFERENT models.
+Judging Claude output with Claude produces inflated scores — the model
+recognizes its own stylistic tells and rewards them. GPT-4.1 has no such
+bias for Claude-generated text. 1-2 points of difference in mean scores
+from this alone, consistently.
+
+memory-mcp is intentionally minimal in 3b: 3 tools (already_applied,
+similar_applications, what_landed_replies) backed by Postgres + Chroma.
+Embeddings are best-effort — if OpenAI is rate-limited or unavailable,
+the outcome row still logs; only the similarity index is skipped.
+
+**Takeaway:** cross-system validation is the cheap version of
+cross-team review. When the thing being measured and the thing doing
+the measuring come from the same model family, you're grading your own
+homework.
+
+---

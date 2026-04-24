@@ -5,11 +5,11 @@ produces a recruiter-quality application: company brief, fit analysis,
 bespoke cover letter, and an auto-filled application form — with human
 approval at 3 checkpoints before anything submits.
 
-> **Status:** Phase 3a complete. Real Cover Letter Writer + Screening
-> Answerer ship, backed by a custom `resume-mcp` FastMCP server and
-> OpenAI embedding-based voice similarity. HITL #2 now renders a real
-> draft that sounds like the user. Phase 3b (memory-mcp + LLM-as-judge
-> + baseline comparison table) is next.
+> **Status:** Phase 3b complete. memory-mcp + real Memory Curator +
+> LLM-as-judge (GPT-4.1 via OpenRouter) + cover-letter baseline
+> comparison. Running `apply bench --cover-letters` produces a 2-way
+> S-vs-B1 scoring table. Phase 4 (Form-Fill via Claude Agent SDK +
+> Playwright) is next.
 
 ## Architecture
 
