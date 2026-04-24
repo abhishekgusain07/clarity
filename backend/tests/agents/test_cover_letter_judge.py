@@ -1,9 +1,10 @@
+from datetime import UTC, datetime
+
 import pytest
 from pydantic_ai.models.test import TestModel
 
 from apply.agents.cover_letter_judge import judge_cover_letter
 from apply.schemas.writing import CoverLetter
-from datetime import datetime, UTC
 
 
 @pytest.mark.asyncio

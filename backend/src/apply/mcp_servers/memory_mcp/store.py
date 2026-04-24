@@ -47,10 +47,7 @@ class MemoryStore:
         )
         result = await self.session.execute(stmt)
         apps = result.scalars().all()
-        for app in apps:
-            if app.job_listing_json.get("role_title") == role_title:
-                return True
-        return False
+        return any(app.job_listing_json.get("role_title") == role_title for app in apps)
 
     async def log_outcome(
         self,

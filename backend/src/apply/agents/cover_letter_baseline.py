@@ -12,7 +12,6 @@ from pydantic_ai import Agent
 
 from apply.agents.models import sonnet
 
-
 SYSTEM_PROMPT = """
 Write a cover letter for the candidate described below, applying to the
 role described below. 250-350 words. Professional tone. No sign-off

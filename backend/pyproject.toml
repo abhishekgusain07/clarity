@@ -67,6 +67,10 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 "eval/reports/markdown.py" = ["E501"]
 "eval/runners/*.py" = ["E501"]
 "tests/eval/*.py" = ["E501"]
+# Long lines in agent prompts and inline SQL-column comments.
+"src/apply/agents/cover_letter_baseline.py" = ["E501"]
+"src/apply/db/models.py" = ["E501"]
+"src/apply/mcp_servers/memory_mcp/server.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

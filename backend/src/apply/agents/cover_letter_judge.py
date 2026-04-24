@@ -21,7 +21,6 @@ from pydantic_ai import Agent
 from apply.agents.models import gpt41
 from apply.schemas.writing import CoverLetter
 
-
 SYSTEM_PROMPT = """
 You are a cold-read recruiter scoring a cover letter against 4 dimensions.
 
