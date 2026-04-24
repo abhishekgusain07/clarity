@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from apply.agents import runtime
-from apply.agents.form_fill import form_fill_stub
+from apply.agents.form_context import FormFillDeps
 from apply.mcp_servers.resume_mcp.corpus import ResumeCorpus
 from apply.observability.langfuse_setup import get_langfuse
 from apply.orchestrator.state_machine import advance_state
@@ -96,16 +96,47 @@ async def run_to_next_checkpoint(ctx: PipelineContext) -> None:
             return
 
         if ctx.state == PipelineRunState.FILLING_FORM:
+            _load_corpus_once(ctx)
             listing = ctx.artifacts.get("job_listing", {})
             application_url = listing.get("application_url", ctx.jd_url)
             letter = ctx.artifacts.get("cover_letter", {})
+            research = ctx.artifacts.get("company_research", {})
+            samples: list[str] = ctx.artifacts.get("voice_samples", [])
+
+            corpus = ResumeCorpus()
+            profile: dict[str, str] = {}
+            for k in ("full_name", "name", "email", "phone", "linkedin_url",
+                      "github_url", "portfolio_url", "location"):
+                v = corpus.profile_field(k)
+                if v is not None:
+                    profile[k] = v
+            # Fallback: if full_name isn't set, use name
+            if "full_name" not in profile and "name" in profile:
+                profile["full_name"] = profile["name"]
+
+            resume_pdf_path = (
+                corpus.profile_field("resume_pdf_path")
+                or str((corpus.seed_dir / "resume.md").resolve())
+            )
+
+            deps = FormFillDeps(
+                application_url=application_url,
+                profile=profile,
+                resume_pdf_path=resume_pdf_path,
+                cover_letter_text=letter.get("body_markdown", ""),
+                company_name=listing.get("company_name", ""),
+                company_brief=(
+                    f"{research.get('company_name', '')} — "
+                    f"signal {research.get('signal_score', 0):.2f}"
+                ),
+                jd_markdown=listing.get("description_markdown", ""),
+                voice_samples=samples,
+            )
+
             with trace.span(name="form_fill"):
-                result = await form_fill_stub(
-                    application_url=application_url,
-                    cover_letter_body=letter.get("body_markdown", ""),
-                )
+                result = await runtime.form_fill(deps=deps)
             ctx.artifacts["form_fill_result"] = result.model_dump(mode="json")
-            ctx.cost_accumulated_usd += 0.08
+            ctx.cost_accumulated_usd += 0.15  # form-fill is the expensive step
             ctx.state = advance_state(ctx.state, PipelineRunState.AWAITING_SUBMIT_APPROVAL)
             return
 
