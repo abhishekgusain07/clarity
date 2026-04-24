@@ -1,19 +1,95 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { Github, GitCommitHorizontal } from 'lucide-react'
 
 export const Route = createFileRoute('/')({ component: Home })
 
+const REPO_URL = 'https://github.com/abhishekgusain07/clarity'
+
+const STACK: ReadonlyArray<{
+  group: string
+  items: ReadonlyArray<string>
+}> = [
+  {
+    group: 'Frontend',
+    items: [
+      'TanStack Start',
+      'React 19',
+      'TypeScript',
+      'Tailwind v4',
+      'Vite',
+      'Lucide',
+    ],
+  },
+  {
+    group: 'Backend',
+    items: [
+      'FastAPI',
+      'Pydantic AI',
+      'SQLAlchemy + asyncpg',
+      'Alembic',
+      'SSE streaming',
+      'FastMCP',
+    ],
+  },
+  {
+    group: 'Agents & infra',
+    items: [
+      'Claude Haiku + Sonnet (OpenRouter)',
+      'GPT-4.1 judge (OpenRouter)',
+      'Tavily MCP',
+      'Firecrawl MCP',
+      'Playwright MCP',
+      'Chroma + Postgres memory',
+      'Langfuse traces',
+    ],
+  },
+]
+
+const CHANGELOG: ReadonlyArray<{
+  date: string
+  phase: string
+  title: string
+  body: string
+}> = [
+  {
+    date: '2026-04-24',
+    phase: 'V1',
+    title: 'Frontend rebrand — Clarity → Apply',
+    body: 'Front page, header, and footer aligned with the new product. GitHub source link surfaced.',
+  },
+  {
+    date: '2026-04-24',
+    phase: 'Phase 5a',
+    title: 'Dashboard + outcome logging',
+    body: 'Applications list, detail view, outcome marking, and aggregated stats — all wired to real APIs (`GET /applications`, `PATCH /applications/{id}/outcome`, `GET /dashboard/stats`).',
+  },
+  {
+    date: '2026-04-24',
+    phase: 'Phase 4a',
+    title: 'Form-Fill agent',
+    body: 'Real Form-Fill via Pydantic AI + Playwright MCP routed through OpenRouter. Typed FormFillDeps run-time context, opt-in integration test against a local HTML form.',
+  },
+  {
+    date: '2026-04-24',
+    phase: 'Phase 3b',
+    title: 'memory-mcp + cross-model judge',
+    body: 'memory-mcp FastMCP server (Postgres + Chroma) with Memory Curator agent. Cover-letter bench (S vs B1) scored by GPT-4.1 judge via OpenRouter on a 4-dimension rubric.',
+  },
+  {
+    date: '2026-04-23',
+    phase: 'Phase 3a',
+    title: 'Cover Letter Writer + Screening Answerer',
+    body: 'Voice-profiled cover letters and screening-question answers, routed through the orchestrator with a real voice corpus loader.',
+  },
+  {
+    date: '2026-04-23',
+    phase: 'Phase 1–2',
+    title: 'Walking skeleton',
+    body: 'Spec, FastAPI scaffolding, Pydantic AI orchestrator, and the first three agents (Intake, Company Researcher, Fit Analyst) under a stub/real runtime switch.',
+  },
+]
+
 function Home() {
-  const [email, setEmail] = useState('')
-  const [submitted, setSubmitted] = useState(false)
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (email.trim()) {
-      setSubmitted(true)
-    }
-  }
-
   return (
     <main className="relative z-10">
       {/* ── Hero ── */}
@@ -24,52 +100,52 @@ function Home() {
             style={{ animation: 'pulse-dot 2.5s ease-in-out infinite' }}
           />
           <span className="text-[11px] font-medium tracking-[0.14em] text-[var(--accent)]">
-            COMING SOON
+            V1 — LIVE
           </span>
         </div>
 
         <h1
-          className="rise-in mx-auto max-w-[720px] font-serif text-[clamp(2.5rem,7vw,4.5rem)] leading-[1.08] tracking-tight text-[var(--text)]"
+          className="rise-in mx-auto max-w-[780px] font-serif text-[clamp(2.5rem,7vw,4.5rem)] leading-[1.08] tracking-tight text-[var(--text)]"
           style={{ animationDelay: '80ms' }}
         >
-          Research intelligence for decisions that matter.
+          Recruiter-quality applications. One URL at a time.
         </h1>
 
         <p
-          className="rise-in mx-auto mt-6 max-w-lg text-[15px] leading-relaxed text-[var(--text-secondary)] sm:text-base"
+          className="rise-in mx-auto mt-6 max-w-xl text-[15px] leading-relaxed text-[var(--text-secondary)] sm:text-base"
           style={{ animationDelay: '160ms' }}
         >
-          Tell it a decision you're wrestling with. Six specialist agents
-          research in parallel and deliver a citation-backed
-          brief&nbsp;&mdash;&nbsp;not a chat response.
+          Paste a job link. Seven specialist agents research the company,
+          build a quote-backed fit analysis, draft a cover letter in your
+          voice, and fill the form&nbsp;&mdash;&nbsp;with your approval at
+          three checkpoints before anything submits.
         </p>
 
-        <div className="rise-in mt-10" style={{ animationDelay: '240ms' }}>
-          {!submitted ? (
-            <form
-              onSubmit={handleSubmit}
-              className="mx-auto flex max-w-md flex-col gap-2.5 sm:flex-row"
-            >
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                required
-                className="flex-1 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-4 py-3 text-sm text-[var(--text)] placeholder:text-[var(--text-tertiary)] outline-none transition focus:border-[var(--accent-border)]"
-              />
-              <button
-                type="submit"
-                className="cursor-pointer rounded-lg bg-[var(--accent)] px-6 py-3 text-sm font-medium text-white transition hover:bg-[var(--accent-hover)] active:scale-[0.98]"
-              >
-                Join the waitlist
-              </button>
-            </form>
-          ) : (
-            <p className="text-sm font-medium text-[var(--accent)]">
-              Thanks&nbsp;&mdash;&nbsp;we'll be in touch.
-            </p>
-          )}
+        <div
+          className="rise-in mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row"
+          style={{ animationDelay: '240ms' }}
+        >
+          <Link
+            to="/applications/new"
+            className="cursor-pointer rounded-lg bg-[var(--accent)] px-6 py-3 text-sm font-medium text-white no-underline transition hover:bg-[var(--accent-hover)] active:scale-[0.98]"
+          >
+            Start an application
+          </Link>
+          <Link
+            to="/dashboard"
+            className="cursor-pointer rounded-lg border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-6 py-3 text-sm font-medium text-[var(--text)] no-underline transition hover:border-[var(--accent-border)]"
+          >
+            View dashboard
+          </Link>
+          <a
+            href={REPO_URL}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-[var(--text-secondary)] no-underline transition hover:text-[var(--text)]"
+          >
+            <Github className="h-4 w-4" />
+            Source on GitHub
+          </a>
         </div>
       </section>
 
@@ -86,74 +162,93 @@ function Home() {
               <span className="h-2.5 w-2.5 rounded-full bg-[rgba(255,255,255,0.08)]" />
               <span className="h-2.5 w-2.5 rounded-full bg-[rgba(255,255,255,0.08)]" />
               <span className="ml-3 font-mono text-[11px] text-[rgba(255,255,255,0.2)]">
-                clarity
+                apply
               </span>
             </div>
 
             {/* Terminal body */}
             <div className="overflow-x-auto p-5 font-mono text-[13px] leading-[1.85] text-[#d4d4d4] sm:p-6">
               <Line>
-                <Dim>$</Dim> clarity research{' '}
-                <Accent>"Should I accept this job offer?"</Accent>
+                <Dim>$</Dim> apply submit{' '}
+                <Accent>https://jobs.ycombinator.com/founding-engineer</Accent>
               </Line>
 
               <Spacer />
               <Line>
-                <Dim>[Planning research...]</Dim>
+                <Dim>[Intake — parsing JD...]</Dim>
               </Line>
               <Line>
-                <Dim>{'  '}→ career decision, compensation, company eval</Dim>
+                <Dim>{'  '}→ Founding Engineer, AI · Seed · $180k–$220k</Dim>
               </Line>
               <Line>
-                <Dim>{'  '}→ 6 subtasks assembled</Dim>
-              </Line>
-
-              <Spacer />
-              <Line>
-                <Dim>[Running 4 specialists in parallel...]</Dim>
-              </Line>
-              <Line>
-                {'  '}
-                <Green>✓</Green> Company Researcher <Dim>47 sources</Dim>
-              </Line>
-              <Line>
-                {'  '}
-                <Green>✓</Green> Market Analyst{'     '}
-                <Dim>23 sources</Dim>
-              </Line>
-              <Line>
-                {'  '}
-                <Green>✓</Green> Role Analyst{'       '}
-                <Dim>12 sources</Dim>
-              </Line>
-              <Line>
-                {'  '}
-                <Green>✓</Green> Risk Analyst{'        '}
-                <Dim>8 sources</Dim>
+                <Dim>{'  '}→ 14 requirements extracted</Dim>
               </Line>
 
               <Spacer />
               <Line>
-                <Dim>[Fact-checking...]</Dim>
+                <Dim>[Dispatching 7 agents...]</Dim>
               </Line>
               <Line>
                 {'  '}
-                <Green>✓</Green> 94 claims verified
+                <Green>✓</Green> Company Researcher{'    '}
+                <Dim>31 sources</Dim>
               </Line>
               <Line>
                 {'  '}
-                <Amber>⚠</Amber> 3 contradictions flagged
+                <Green>✓</Green> Fit Analyst{'           '}
+                <Dim>12 JD quotes matched</Dim>
+              </Line>
+              <Line>
+                {'  '}
+                <Green>✓</Green> Voice Profiler{'        '}
+                <Dim>4 writing samples</Dim>
+              </Line>
+              <Line>
+                {'  '}
+                <Green>✓</Green> Cover Letter Writer{'   '}
+                <Dim>draft v2 · 312 words</Dim>
+              </Line>
+              <Line>
+                {'  '}
+                <Green>✓</Green> Form Filler{'           '}
+                <Dim>18 fields mapped</Dim>
+              </Line>
+              <Line>
+                {'  '}
+                <Green>✓</Green> Memory Curator{'        '}
+                <Dim>2 similar past outcomes</Dim>
+              </Line>
+
+              <Spacer />
+              <Line>
+                <Dim>[Human-in-the-loop checkpoints]</Dim>
+              </Line>
+              <Line>
+                {'  '}
+                <Green>✓</Green> Fit gate{'       '}
+                <Dim>approved</Dim>
+              </Line>
+              <Line>
+                {'  '}
+                <Green>✓</Green> Content review{' '}
+                <Dim>approved</Dim>
+              </Line>
+              <Line>
+                {'  '}
+                <Green>✓</Green> Submit{'         '}
+                <Dim>approved</Dim>
               </Line>
 
               <div className="mt-5 border-t border-[rgba(255,255,255,0.06)] pt-4">
                 <Line>
-                  Brief saved → <Accent>job-offer-2026-04-12.md</Accent>
+                  Application submitted →{' '}
+                  <Accent>/applications/a7f3…</Accent>
                 </Line>
                 <Line>
                   <Dim>
-                    Confidence: <White>0.78</White> │ Sources:{' '}
-                    <White>90</White> │ Cost: <White>$0.42</White> │{' '}
-                    <White>6m 24s</White>
+                    Fit: <White>0.81</White> │ Sources:{' '}
+                    <White>31</White> │ Cost: <White>$0.64</White> │{' '}
+                    <White>4m 12s</White>
                   </Dim>
                 </Line>
               </div>
@@ -168,16 +263,16 @@ function Home() {
           {(
             [
               [
-                'Research, not chat',
-                'Six specialist agents attack your question from every angle — research, domain expertise, risk analysis, fact-checking.',
+                'Researches the company',
+                'Recent news, founder background, funding stage, their own blog. A 30-source brief before a single word of the cover letter is written.',
               ],
               [
-                'Every claim cited',
-                'Source URLs and confidence scores on every finding. Verify anything in the brief yourself.',
+                'Your voice, not ChatGPT’s',
+                'Cover letters voice-profiled from your past writing. Fit reasoning backed by resume + JD quotes — not vibes.',
               ],
               [
-                'Contradictions surfaced',
-                'When sources disagree, you see both sides with evidence. Nothing silently resolved.',
+                'Three checkpoints before submit',
+                'Fit gate, content review, submit approval. Nothing leaves your machine without your yes. Learns from what lands replies.',
               ],
             ] as const
           ).map(([title, desc], i) => (
@@ -199,18 +294,114 @@ function Home() {
       </section>
 
       {/* ── Manifesto ── */}
-      <section className="page-wrap px-4 pb-32">
+      <section className="page-wrap px-4 pb-28">
         <div className="rise-in mx-auto max-w-xl text-center">
           <h2 className="font-serif text-[clamp(1.4rem,3.5vw,1.75rem)] leading-snug tracking-tight text-[var(--text)]">
-            The gap between information and research is where costly mistakes
-            happen.
+            Apply deliberately.
           </h2>
           <p className="mt-5 text-sm leading-relaxed text-[var(--text-secondary)]">
-            Google gives you twenty contradictory blog posts. ChatGPT gives
-            confident hallucinations with no sources. A professional researcher
-            costs $500&nbsp;an&nbsp;hour. Clarity gives you a structured brief
-            with citations you can verify.
+            The category is a race to the bottom — blast 750 generic
+            applications a day and hope one sticks. Recruiters smell that
+            output and ignore it. Five bespoke applications you&rsquo;d
+            sign your name to beat five hundred you wouldn&rsquo;t.
           </p>
+        </div>
+      </section>
+
+      {/* ── Built on ── */}
+      <section className="page-wrap px-4 pb-28">
+        <div className="mx-auto max-w-3xl">
+          <div className="rise-in mb-10 text-center">
+            <p className="island-kicker mb-2 text-[11px] font-medium tracking-[0.14em] text-[var(--accent)]">
+              BUILT ON
+            </p>
+            <h2 className="font-serif text-[clamp(1.4rem,3.5vw,1.75rem)] leading-snug tracking-tight text-[var(--text)]">
+              Real 2026 primitives. No magic.
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-[var(--text-secondary)]">
+              Pydantic AI for orchestration. MCP servers for every tool.
+              OpenRouter so we can swap models. Langfuse so we can see
+              every call.
+            </p>
+          </div>
+
+          <div className="grid gap-8 sm:grid-cols-3">
+            {STACK.map((col, i) => (
+              <div
+                key={col.group}
+                className="rise-in"
+                style={{ animationDelay: `${i * 100 + 100}ms` }}
+              >
+                <div className="mb-4 h-px w-8 bg-[var(--accent)] opacity-40" />
+                <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--text)]">
+                  {col.group}
+                </h3>
+                <ul className="m-0 flex flex-wrap gap-1.5 p-0">
+                  {col.items.map((tech) => (
+                    <li
+                      key={tech}
+                      className="list-none rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-2.5 py-1 text-[12px] text-[var(--text-secondary)]"
+                    >
+                      {tech}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Changelog ── */}
+      <section className="page-wrap px-4 pb-32">
+        <div className="mx-auto max-w-2xl">
+          <div className="rise-in mb-10 flex items-end justify-between gap-4">
+            <div>
+              <p className="island-kicker mb-2 text-[11px] font-medium tracking-[0.14em] text-[var(--accent)]">
+                CHANGELOG
+              </p>
+              <h2 className="font-serif text-[clamp(1.4rem,3.5vw,1.75rem)] leading-snug tracking-tight text-[var(--text)]">
+                How we got here.
+              </h2>
+            </div>
+            <a
+              href={`${REPO_URL}/commits/master`}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex shrink-0 items-center gap-1.5 text-xs text-[var(--text-secondary)] no-underline transition hover:text-[var(--text)]"
+            >
+              <Github className="h-3.5 w-3.5" />
+              Full history
+            </a>
+          </div>
+
+          <ol className="relative m-0 list-none border-l border-[var(--border)] p-0 pl-6">
+            {CHANGELOG.map((entry, i) => (
+              <li
+                key={`${entry.date}-${entry.phase}`}
+                className="rise-in relative pb-8 last:pb-0"
+                style={{ animationDelay: `${i * 60 + 80}ms` }}
+              >
+                <span className="absolute -left-[31px] top-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border border-[var(--accent-border)] bg-[var(--bg)] text-[var(--accent)]">
+                  <GitCommitHorizontal className="h-3 w-3" />
+                </span>
+                <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                  <time className="font-mono text-[11px] text-[var(--text-tertiary)]">
+                    {entry.date}
+                  </time>
+                  <span className="rounded-md border border-[var(--accent-border)] bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-medium tracking-[0.08em] text-[var(--accent)]">
+                    {entry.phase}
+                  </span>
+                </div>
+                <h3 className="mb-1 text-[14px] font-semibold text-[var(--text)]">
+                  {entry.title}
+                </h3>
+                <p className="m-0 text-[13px] leading-relaxed text-[var(--text-secondary)]">
+                  {entry.body}
+                </p>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
     </main>
@@ -233,10 +424,6 @@ function Dim({ children }: { children: React.ReactNode }) {
 
 function Green({ children }: { children: React.ReactNode }) {
   return <span className="text-[#4ade80]">{children}</span>
-}
-
-function Amber({ children }: { children: React.ReactNode }) {
-  return <span className="text-[#fbbf24]">{children}</span>
 }
 
 function Accent({ children }: { children: React.ReactNode }) {
