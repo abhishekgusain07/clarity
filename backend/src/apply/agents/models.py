@@ -19,6 +19,7 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 # Keep in one place so upgrading is a single edit.
 HAIKU_MODEL_ID = "anthropic/claude-haiku-4.5"
 SONNET_MODEL_ID = "anthropic/claude-sonnet-4.5"
+GPT41_MODEL_ID = "openai/gpt-4.1"
 
 
 def _build_openrouter_client() -> AsyncOpenAI:
@@ -49,3 +50,9 @@ def haiku() -> OpenAIModel:
 def sonnet() -> OpenAIModel:
     """Reasoning model for research + fit analysis."""
     return _build_model(SONNET_MODEL_ID)
+
+
+def gpt41() -> OpenAIModel:
+    """GPT-4.1 via OpenRouter — used as the cross-model judge (different from
+    Claude which generates the content we're judging, to reduce self-grading bias)."""
+    return _build_model(GPT41_MODEL_ID)
