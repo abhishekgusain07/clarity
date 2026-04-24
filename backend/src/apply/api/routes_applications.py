@@ -1,7 +1,9 @@
 import asyncio
+import uuid
+from typing import Literal
 
 import httpx
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apply.agents import runtime
 from apply.config import get_settings
 from apply.db.models import Application as ApplicationRow
+from apply.db.models import Outcome as OutcomeRow
 from apply.db.models import User as UserRow
 from apply.db.session import get_session
 from apply.orchestrator.events import get_event_bus
@@ -168,9 +171,6 @@ async def list_applications(
     return ListApplicationsResponse(items=items, total=len(items))
 
 
-from typing import Literal
-
-
 class OutcomeUpdateRequest(BaseModel):
     status: Literal["SUBMITTED", "REPLIED", "INTERVIEWED", "REJECTED", "GHOSTED", "OFFERED"]
     notes: str | None = None
@@ -191,13 +191,6 @@ async def update_outcome(
     req: OutcomeUpdateRequest,
     session: AsyncSession = Depends(get_session),
 ) -> OutcomeUpdateResponse:
-    from sqlalchemy import select
-    from fastapi import HTTPException
-    import uuid
-
-    from apply.db.models import Application as ApplicationRow
-    from apply.db.models import Outcome as OutcomeRow
-
     result = await session.execute(
         select(ApplicationRow).where(ApplicationRow.id == application_id)
     )

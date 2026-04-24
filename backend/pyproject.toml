@@ -61,6 +61,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 # API route handlers intentionally use `Depends(...)` in defaults (FastAPI idiom).
 "src/apply/api/routes_applications.py" = ["B008"]
 "src/apply/api/routes_runs.py" = ["B008"]
+"src/apply/api/routes_dashboard.py" = ["B008"]
 # Tests group imports near the section they test, which is fine for readability.
 "tests/*" = ["E402", "F811", "F401", "E741"]
 # Eval Markdown tables + long f-strings — inherent line length, not hiding logic.
