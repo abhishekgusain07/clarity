@@ -1,7 +1,11 @@
 import type {
   ApproveRequest,
   CreateApplicationResponse,
+  DashboardStats,
   HealthResponse,
+  ListApplicationsResponse,
+  OutcomeUpdate,
+  OutcomeUpdateResponse,
   RunResponse,
 } from "#/lib/types";
 
@@ -52,4 +56,22 @@ export async function approveRun(
 
 export function sseUrl(runId: string): string {
   return `${API_BASE}/runs/${runId}/events`;
+}
+
+export async function listApplications(): Promise<ListApplicationsResponse> {
+  return apiFetch("/applications");
+}
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  return apiFetch("/dashboard/stats");
+}
+
+export async function updateOutcome(
+  applicationId: string,
+  body: OutcomeUpdate,
+): Promise<OutcomeUpdateResponse> {
+  return apiFetch(`/applications/${applicationId}/outcome`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
 }
