@@ -1,5 +1,6 @@
 {
   "name": "Sanyam Upadhyay",
+  "full_name": "Sanyam Upadhyay",
   "email": "satish@team.galaxy.ai",
   "phone": "",
   "linkedin_url": "",
@@ -8,5 +9,6 @@
   "location": "Remote",
   "work_auth": "OPEN_TO_DISCUSS",
   "salary_expectation_usd": null,
-  "remote_preference": "REMOTE_OK"
+  "remote_preference": "REMOTE_OK",
+  "resume_pdf_path": ""
 }
