@@ -13,6 +13,8 @@ from apply.agents.fit_analyst import fit_analyst_stub as _fa_stub
 from apply.agents.fit_analyst_real import fit_analyst_real as _fit_analyst_real
 from apply.agents.intake import intake_stub as _intake_stub
 from apply.agents.intake_real import intake_real as _intake_real
+from apply.agents.memory_curator import memory_curator_stub as _mc_stub
+from apply.agents.memory_curator_real import memory_curator_real as _memory_curator_real
 from apply.agents.screening_answerer import screening_answerer_stub as _sa_stub
 from apply.agents.screening_answerer_real import (
     screening_answerer_real as _screening_answerer_real,
@@ -96,3 +98,21 @@ async def screening_answerer(
             origin=origin,
         )
     return await _sa_stub(question=question, origin=origin)
+
+
+async def memory_curator(
+    application_id: str,
+    status: str = "SUBMITTED",
+    company_name: str | None = None,
+    jd_url: str | None = None,
+    cover_letter_text: str | None = None,
+) -> dict:
+    if _use_real():
+        return await _memory_curator_real(
+            application_id=application_id,
+            status=status,
+            company_name=company_name,
+            jd_url=jd_url,
+            cover_letter_text=cover_letter_text,
+        )
+    return await _mc_stub(application_id=application_id)
