@@ -182,3 +182,30 @@ structured work. Computer-use (screenshot + coordinates) is only
 necessary when there's no structured accessor.
 
 ---
+
+## 2026-04-24 — Dashboard is where the agent work becomes visible
+Tags: product-decisions, architecture
+
+Phase 5a adds the three things that turn the agent stack into a usable
+product: an applications list page, outcome marking (so memory-mcp gets
+real data over time), and a dashboard showing reply rate / cost / fit
+distribution. All backed by the existing Postgres + outcomes table from
+Phase 3b.
+
+No chart library added. A dashboard that shows <5 metrics doesn't need
+recharts or chart.js — CSS bars + text are more than enough and keep
+the frontend bundle tight.
+
+Outcome marking is intentionally user-driven (dropdown + free-text
+notes). Inbox auto-detection is tempting but requires OAuth + inbox
+permissions, and it moves the app from "runs on your laptop with your
+keys" to "needs a third-party auth flow" — too much scope for V1 and
+slower to ship for the audience that will mostly just eyeball their
+own applications.
+
+**Takeaway:** dashboards compound. The first entry is worthless; the
+100th is the money shot. Ship the write path cheaply and let the data
+accumulate rather than over-engineering the read path before there's
+anything to show.
+
+---
