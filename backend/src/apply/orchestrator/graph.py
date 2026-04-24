@@ -3,7 +3,6 @@ from typing import Any
 
 from apply.agents import runtime
 from apply.agents.form_fill import form_fill_stub
-from apply.agents.memory_curator import memory_curator_stub
 from apply.mcp_servers.resume_mcp.corpus import ResumeCorpus
 from apply.observability.langfuse_setup import get_langfuse
 from apply.orchestrator.state_machine import advance_state
@@ -112,8 +111,16 @@ async def run_to_next_checkpoint(ctx: PipelineContext) -> None:
 
         if ctx.state == PipelineRunState.SUBMITTING:
             ctx.artifacts["submission_confirmation"] = {"url": "https://stub.example/confirm"}
+            listing = ctx.artifacts.get("job_listing", {})
+            letter = ctx.artifacts.get("cover_letter", {})
             with trace.span(name="memory_curator"):
-                await memory_curator_stub(application_id=ctx.application_id)
+                await runtime.memory_curator(
+                    application_id=ctx.application_id,
+                    status="SUBMITTED",
+                    company_name=listing.get("company_name"),
+                    jd_url=listing.get("url"),
+                    cover_letter_text=letter.get("body_markdown"),
+                )
             ctx.state = advance_state(ctx.state, PipelineRunState.COMPLETED)
             return
 
