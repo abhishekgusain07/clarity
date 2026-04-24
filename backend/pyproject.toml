@@ -19,6 +19,7 @@ dependencies = [
     "python-multipart>=0.0.20",
     "scipy>=1.14.0",
     "fastmcp>=2.0.0",
+    "chromadb>=1.5.8",
 ]
 
 [project.scripts]
