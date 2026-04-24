@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     )
     apply_x_title: str = Field(default="Apply", alias="APPLY_X_TITLE")
 
+    # Optional OpenAI organization header (for sk-proj-... keys scoped to a specific org)
+    apply_openai_organization: str = Field(default="", alias="APPLY_OPENAI_ORGANIZATION")
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

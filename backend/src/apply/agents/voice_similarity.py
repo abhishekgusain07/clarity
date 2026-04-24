@@ -22,11 +22,19 @@ _client: AsyncOpenAI | None = None
 
 def _get_openai_client() -> AsyncOpenAI:
     """Plain OpenAI client (not routed through OpenRouter — embeddings are
-    cheap and direct-OpenAI is the canonical endpoint for these models)."""
+    cheap and direct-OpenAI is the canonical endpoint for these models).
+
+    Passes an `organization` header when APPLY_OPENAI_ORGANIZATION is set,
+    which sk-proj-... project-scoped keys require when the user's default
+    org doesn't match the key's org.
+    """
     global _client
     if _client is None:
         settings = get_settings()
-        _client = AsyncOpenAI(api_key=settings.openai_api_key)
+        kwargs: dict[str, str] = {"api_key": settings.openai_api_key}
+        if settings.apply_openai_organization:
+            kwargs["organization"] = settings.apply_openai_organization
+        _client = AsyncOpenAI(**kwargs)
     return _client
 
 
