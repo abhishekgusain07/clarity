@@ -24,7 +24,6 @@ from apply.agents.mcp_servers import playwright_mcp
 from apply.agents.models import sonnet
 from apply.schemas.enums import ScreeningAnswerOrigin
 
-
 SYSTEM_PROMPT = """
 You are filling a job application form via a browser. You have Playwright
 tools (navigate, click, fill, upload, screenshot, accessibility_snapshot)

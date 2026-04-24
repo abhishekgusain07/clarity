@@ -4,8 +4,8 @@ import pytest
 from pydantic_ai.models.test import TestModel
 
 from apply.agents.form_context import FormFillDeps
-from apply.agents.form_fill_real import form_fill_real
 from apply.agents.form_fill import FormFillResult
+from apply.agents.form_fill_real import form_fill_real
 
 
 @pytest.fixture
@@ -38,10 +38,10 @@ async def test_form_fill_real_returns_structured_result(sample_deps):
         }
     )
 
-    from apply.agents import form_fill_real as mod
-
     # Build a new agent without the real Playwright MCP toolset for the test
     from pydantic_ai import Agent
+
+    from apply.agents import form_fill_real as mod
 
     agent_without_mcp = Agent(
         model=test_model,
@@ -81,8 +81,9 @@ async def test_form_fill_real_surfaces_unknown_fields(sample_deps):
         }
     )
 
-    from apply.agents import form_fill_real as mod
     from pydantic_ai import Agent
+
+    from apply.agents import form_fill_real as mod
 
     agent_without_mcp = Agent(
         model=test_model,
