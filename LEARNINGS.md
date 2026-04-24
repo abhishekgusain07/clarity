@@ -146,3 +146,39 @@ the measuring come from the same model family, you're grading your own
 homework.
 
 ---
+
+## 2026-04-24 — MCP toolsets beat a purpose-built SDK for structured forms
+Tags: agent-design, architecture, product-decisions
+
+Initially scoped Phase 4a around Claude Agent SDK + computer-use (the
+hot 2026 skill). Reversed course to use Pydantic AI + Playwright MCP
+via OpenRouter instead. Reasons:
+
+1. Same keys we already have (OpenRouter) — no funded Anthropic account
+   needed for dev.
+2. Playwright MCP's structured tools (`fill(selector, value)`) are
+   strictly better than coordinate-clicking via screenshot for HTML
+   forms — faster, cheaper, more reliable, no OCR.
+3. Architectural consistency: Company Researcher already uses
+   Tavily+Firecrawl MCP toolsets in Pydantic AI. Form-Fill uses the
+   same pattern with Playwright MCP. One mental model for all agents.
+4. The "I chose accessibility-tree over computer-use for structured
+   forms" story is a stronger interview signal than "I used the SDK
+   out of the box."
+
+What we lose: the literal "Claude Agent SDK on the resume" name-drop.
+What we keep: the browser-driving agent, the dynamic multi-agent
+callback (`answer_screening_question` as an agent tool), the screenshot
+preview for HITL #3, and the real form submission path.
+
+The screening callback via Pydantic AI's `deps` + `RunContext[T].deps`
+pattern is genuinely elegant. The agent's tool accesses pipeline
+context through dependency injection, not closure capture — makes the
+agent unit-testable without pipeline state.
+
+**Takeaway:** reach for the lighter tool when you have the choice.
+An MCP server + a tool-use-capable LLM is almost always enough for
+structured work. Computer-use (screenshot + coordinates) is only
+necessary when there's no structured accessor.
+
+---

@@ -5,11 +5,11 @@ produces a recruiter-quality application: company brief, fit analysis,
 bespoke cover letter, and an auto-filled application form — with human
 approval at 3 checkpoints before anything submits.
 
-> **Status:** Phase 3b complete. memory-mcp + real Memory Curator +
-> LLM-as-judge (GPT-4.1 via OpenRouter) + cover-letter baseline
-> comparison. Running `apply bench --cover-letters` produces a 2-way
-> S-vs-B1 scoring table. Phase 4 (Form-Fill via Claude Agent SDK +
-> Playwright) is next.
+> **Status:** Phase 4a complete. Form-Fill now drives a real browser
+> via Playwright MCP, filling YC WaaS forms end-to-end. All 7 agents
+> are real. Screening-question callback is a dynamic tool invocation
+> via Pydantic AI's deps pattern. Phase 4b (Greenhouse + Lever ATS
+> support) and Phase 5 (dashboard + deploy) remain.
 
 ## Architecture
 
