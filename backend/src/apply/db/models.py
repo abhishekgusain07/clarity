@@ -69,3 +69,18 @@ class PipelineRun(Base):
     )
 
     application: Mapped["Application"] = relationship(back_populates="runs")
+
+
+class Outcome(Base):
+    __tablename__ = "outcomes"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    application_id: Mapped[str] = mapped_column(String, ForeignKey("applications.id"))
+    status: Mapped[str] = mapped_column(String)  # SUBMITTED | REPLIED | INTERVIEWED | REJECTED | GHOSTED | OFFERED
+    response_received_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    next_step: Mapped[str | None] = mapped_column(String, nullable=True)
+    cover_letter_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    jd_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    company_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
