@@ -84,12 +84,41 @@ def _render_fit(results: list[FitBenchResult], stats: FitCorrelationStats) -> st
     return "\n".join(lines)
 
 
+def render_cover_letter_comparison(summary) -> str:
+    """Render a 2-way comparison table for S (full pipeline) vs B1 (Claude one-shot)."""
+    if not summary.rows:
+        return "### Cover Letter Comparison (S vs B1)\n\nNo results.\n"
+    lines = [
+        "### Cover Letter Comparison (S = full pipeline, B1 = Claude one-shot)",
+        "",
+        f"- **Pairs judged:** {len(summary.rows)}",
+        f"- **Specificity lift (S - B1):** {summary.mean_delta('specificity'):+.2f}",
+        f"- **Voice match lift:**      {summary.mean_delta('voice_match'):+.2f}",
+        f"- **Hook strength lift:**    {summary.mean_delta('hook_strength'):+.2f}",
+        f"- **Professionalism lift:**  {summary.mean_delta('professionalism'):+.2f}",
+        "",
+        "| Company | Spec (S/B1) | Voice (S/B1) | Hook (S/B1) | Prof (S/B1) |",
+        "|---|---|---|---|---|",
+    ]
+    for r in summary.rows:
+        lines.append(
+            f"| {r.company_name} | "
+            f"{r.s_scores.specificity}/{r.b1_scores.specificity} | "
+            f"{r.s_scores.voice_match}/{r.b1_scores.voice_match} | "
+            f"{r.s_scores.hook_strength}/{r.b1_scores.hook_strength} | "
+            f"{r.s_scores.professionalism}/{r.b1_scores.professionalism} |"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
 def render_bench_report(
     intake: list[IntakeBenchResult],
     company: list[CompanyResearchBenchResult],
     fit: list[FitBenchResult],
     fit_stats: FitCorrelationStats,
     run_timestamp: str,
+    cover_letter_summary=None,
 ) -> str:
     parts = [
         "# Bench report",
@@ -112,4 +141,10 @@ def render_bench_report(
         "",
         _render_fit(fit, fit_stats),
     ]
+    if cover_letter_summary is not None:
+        parts.extend([
+            "---",
+            "",
+            render_cover_letter_comparison(cover_letter_summary),
+        ])
     return "\n".join(parts)

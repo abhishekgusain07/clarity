@@ -1,5 +1,6 @@
 """`apply bench` orchestrator — runs all three bench runners and writes a report."""
 import asyncio
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -72,6 +73,30 @@ async def run_bench() -> Path:
         company_brief_fn=_company_brief,
     )
 
+    cover_letter_summary = None
+    if "--cover-letters" in sys.argv:
+        from apply.mcp_servers.resume_mcp.corpus import ResumeCorpus
+        from eval.runners.cover_letter_bench import run_cover_letter_bench
+
+        corpus = ResumeCorpus()
+        voice_samples = [s.text for s in corpus.list_voice_samples()]
+
+        async def _research_brief(company_name: str) -> str:
+            research = await company_researcher(company_name=company_name)
+            return (
+                f"{research.company_name}. Funding: {research.funding_stage or 'unknown'}. "
+                f"Founders: {', '.join(f.name for f in research.founders)}. "
+                f"Signal: {research.signal_score:.2f}."
+            )
+
+        cover_letter_summary = await run_cover_letter_bench(
+            jds_path=GOLDENSET_DIR / "jds.json",
+            resumes_path=GOLDENSET_DIR / "resumes.json",
+            voice_samples=voice_samples,
+            jd_fetch_fn=_fetch_jd_text,
+            company_research_fn=_research_brief,
+        )
+
     ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     md = render_bench_report(
         intake=intake_results,
@@ -79,6 +104,7 @@ async def run_bench() -> Path:
         fit=fit_results,
         fit_stats=fit_stats,
         run_timestamp=ts,
+        cover_letter_summary=cover_letter_summary,
     )
 
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
