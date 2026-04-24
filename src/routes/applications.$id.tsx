@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { HitlContentApproval } from "#/components/HitlContentApproval";
 import { HitlFitGate } from "#/components/HitlFitGate";
 import { HitlSubmissionGate } from "#/components/HitlSubmissionGate";
+import { OutcomeMarker } from "#/components/OutcomeMarker";
 import { PipelineTimeline } from "#/components/PipelineTimeline";
 import { approveRun, getRun } from "#/lib/api";
 import { useRunEvents } from "#/lib/sse";
@@ -95,6 +96,11 @@ function RunDetailPage() {
           <p className="text-sm mt-2">
             Confirmation: {(artifacts.submission_confirmation as any)?.url ?? "—"}
           </p>
+          <OutcomeMarker
+            applicationId={run.application_id}
+            currentStatus={run.state}
+            onUpdated={() => refresh()}
+          />
         </div>
       )}
     </div>
