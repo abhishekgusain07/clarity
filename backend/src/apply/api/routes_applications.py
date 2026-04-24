@@ -3,10 +3,12 @@ import asyncio
 import httpx
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, HttpUrl
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apply.agents import runtime
 from apply.config import get_settings
+from apply.db.models import Application as ApplicationRow
 from apply.db.models import User as UserRow
 from apply.db.session import get_session
 from apply.orchestrator.events import get_event_bus
@@ -25,6 +27,22 @@ class CreateApplicationResponse(BaseModel):
     run_id: str
     application_id: str
     state: str
+
+
+class ApplicationSummary(BaseModel):
+    id: str
+    company_name: str
+    role_title: str
+    status: str
+    fit_score: int | None
+    cost_usd: float
+    created_at: str
+    url: str | None
+
+
+class ListApplicationsResponse(BaseModel):
+    items: list[ApplicationSummary]
+    total: int
 
 
 async def _ensure_local_user(session: AsyncSession) -> str:
@@ -119,6 +137,35 @@ async def create_application(
         application_id=app_id,
         state=ctx.state.value,
     )
+
+
+@router.get("", response_model=ListApplicationsResponse)
+async def list_applications(
+    session: AsyncSession = Depends(get_session),
+) -> ListApplicationsResponse:
+    stmt = select(ApplicationRow).order_by(desc(ApplicationRow.created_at))
+    result = await session.execute(stmt)
+    rows = result.scalars().all()
+
+    items: list[ApplicationSummary] = []
+    for row in rows:
+        jd = row.job_listing_json or {}
+        fit = row.fit_analysis_json or {}
+        cost = (row.cost_breakdown_json or {}).get("per_agent_usd", {})
+        items.append(
+            ApplicationSummary(
+                id=row.id,
+                company_name=jd.get("company_name", ""),
+                role_title=jd.get("role_title", ""),
+                status=str(row.status),
+                fit_score=fit.get("overall_score"),
+                cost_usd=float(sum(cost.values())) if cost else 0.0,
+                created_at=row.created_at.isoformat() if row.created_at else "",
+                url=jd.get("url"),
+            )
+        )
+
+    return ListApplicationsResponse(items=items, total=len(items))
 
 
 async def _drive_pipeline(run_id: str, ctx: PipelineContext) -> None:

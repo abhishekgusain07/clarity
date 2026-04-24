@@ -108,3 +108,52 @@ async def test_approve_advances_state(app, db_session):
                 break
         else:
             pytest.fail("pipeline did not reach AWAITING_CONTENT_APPROVAL")
+
+
+@pytest.mark.asyncio
+async def test_list_applications_empty(app, db_session):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/applications")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body == {"items": [], "total": 0}
+
+
+@pytest.mark.asyncio
+async def test_list_applications_returns_summaries(app, db_session):
+    from apply.db.models import Application, User
+
+    db_session.add(User(id="user-local", email="local@apply.dev", name="Local", profile_json={}))
+    await db_session.flush()
+    db_session.add(Application(
+        id="app-1",
+        user_id="user-local",
+        status="SUBMITTED",
+        job_listing_json={
+            "id": "job-1",
+            "company_name": "Acme AI",
+            "role_title": "Founding Engineer",
+            "url": "https://example.com/jobs/1",
+        },
+        fit_analysis_json={"overall_score": 78, "verdict": "MODERATE"},
+        cost_breakdown_json={"per_agent_usd": {"intake": 0.001, "researcher": 0.05}},
+    ))
+    await db_session.commit()
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/applications")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert len(body["items"]) == 1
+    item = body["items"][0]
+    assert item["id"] == "app-1"
+    assert item["company_name"] == "Acme AI"
+    assert item["role_title"] == "Founding Engineer"
+    assert item["status"] == "SUBMITTED"
+    assert item["fit_score"] == 78
+    assert item["cost_usd"] == pytest.approx(0.051)
