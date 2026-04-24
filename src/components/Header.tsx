@@ -15,6 +15,9 @@ export default function Header() {
           <Link to="/applications" className="text-sm hover:underline">
             Applications
           </Link>
+          <Link to="/dashboard" className="text-sm hover:underline">
+            Dashboard
+          </Link>
           <ThemeToggle />
         </div>
       </nav>
