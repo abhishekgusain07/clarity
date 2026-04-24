@@ -127,13 +127,13 @@ function Home() {
         >
           <Link
             to="/applications/new"
-            className="cursor-pointer rounded-lg bg-[var(--accent)] px-6 py-3 text-sm font-medium text-white no-underline transition hover:bg-[var(--accent-hover)] active:scale-[0.98]"
+            className="cursor-pointer rounded-lg bg-[var(--accent)] px-6 py-3 text-sm font-medium text-white! no-underline transition hover:bg-[var(--accent-hover)] hover:text-white! active:scale-[0.98]"
           >
             Start an application
           </Link>
           <Link
             to="/dashboard"
-            className="cursor-pointer rounded-lg border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-6 py-3 text-sm font-medium text-[var(--text)] no-underline transition hover:border-[var(--accent-border)]"
+            className="cursor-pointer rounded-lg border border-[var(--border-strong)] bg-[var(--bg-elevated)] px-6 py-3 text-sm font-medium text-[var(--text)]! no-underline transition hover:border-[var(--accent-border)]"
           >
             View dashboard
           </Link>
@@ -141,7 +141,7 @@ function Home() {
             href={REPO_URL}
             target="_blank"
             rel="noreferrer noopener"
-            className="inline-flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-[var(--text-secondary)] no-underline transition hover:text-[var(--text)]"
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium text-[var(--text-secondary)]! no-underline transition hover:text-[var(--text)]!"
           >
             <Github className="h-4 w-4" />
             Source on GitHub
