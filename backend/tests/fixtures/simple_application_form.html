@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test Application</title></head>
+<body>
+<h1>Apply for: Test Engineer at Test Corp</h1>
+<form id="app-form" action="/submit" method="post">
+  <label>Full name: <input type="text" name="full_name" id="full_name" required /></label><br/>
+  <label>Email: <input type="email" name="email" id="email" required /></label><br/>
+  <label>GitHub URL: <input type="url" name="github_url" id="github_url" /></label><br/>
+  <label>Cover letter:<br/>
+    <textarea name="cover_letter" id="cover_letter" rows="8" cols="60"></textarea>
+  </label><br/>
+  <label>Why us?:<br/>
+    <textarea name="why_us" id="why_us" rows="4" cols="60" placeholder="Screening question"></textarea>
+  </label><br/>
+  <button type="submit" id="submit-btn">Submit application</button>
+</form>
+</body>
+</html>
