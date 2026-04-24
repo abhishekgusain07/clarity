@@ -11,6 +11,10 @@ from apply.agents.cover_letter_writer_real import (
 )
 from apply.agents.fit_analyst import fit_analyst_stub as _fa_stub
 from apply.agents.fit_analyst_real import fit_analyst_real as _fit_analyst_real
+from apply.agents.form_context import FormFillDeps
+from apply.agents.form_fill import FormFillResult
+from apply.agents.form_fill import form_fill_stub as _ff_stub
+from apply.agents.form_fill_real import form_fill_real as _form_fill_real
 from apply.agents.intake import intake_stub as _intake_stub
 from apply.agents.intake_real import intake_real as _intake_real
 from apply.agents.memory_curator import memory_curator_stub as _mc_stub
@@ -116,3 +120,12 @@ async def memory_curator(
             cover_letter_text=cover_letter_text,
         )
     return await _mc_stub(application_id=application_id)
+
+
+async def form_fill(deps: FormFillDeps) -> FormFillResult:
+    if _use_real():
+        return await _form_fill_real(deps=deps)
+    return await _ff_stub(
+        application_url=deps.application_url,
+        cover_letter_body=deps.cover_letter_text,
+    )
