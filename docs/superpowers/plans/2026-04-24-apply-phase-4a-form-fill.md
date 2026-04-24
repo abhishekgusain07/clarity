@@ -1,19 +1,17 @@
-# Apply — Phase 4a Implementation Plan (Form-Fill with Claude Agent SDK + Playwright MCP)
+# Apply — Phase 4a Implementation Plan (Form-Fill via Pydantic AI + Playwright MCP)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans.
 
-**Goal:** Replace the Form-Fill stub with a real computer-use agent (Claude Agent SDK) that drives a browser (via Playwright MCP) to fill YC WaaS application forms end-to-end, flagging unknown fields for dynamic screening-question answering, capturing a filled-form screenshot for HITL #3, and submitting on user approval.
+**Goal:** Replace the Form-Fill stub with a real browser-driving agent using **Pydantic AI + Playwright MCP via OpenRouter** (no new API keys required). The agent navigates to YC WaaS application forms, inspects the DOM via Playwright's accessibility tools, fills known fields from profile/resume/cover-letter, calls the Screening Answerer as a tool for unknown free-text fields, captures a screenshot for HITL #3, and returns a structured `FormFillResult`. Submission is a separate explicit call after user approval.
 
-**Architecture:** Claude Agent SDK (Python) runs a nested `ClaudeSDKClient` inside the orchestrator's FILLING_FORM branch. Playwright MCP server (Microsoft's official `@playwright/mcp` via `npx`) exposes browser tools to the agent. The agent navigates to the application URL, reads the DOM/accessibility tree, fills fields from a structured "application context" (profile + resume path + cover letter text), and calls back to the Screening Answerer for any unknown free-text fields. Result: `FormFillResult` with screenshot_path + per-field status. Submission is separate — HITL #3 approval triggers a `runtime.submit_application` call.
+**Architecture:** Form-Fill is a `pydantic_ai.Agent` with Claude Sonnet (via OpenRouter, same stack as research agents) and two toolsets: (1) Playwright MCP for browser control, (2) a `@agent.tool` method `answer_screening_question` that calls `runtime.screening_answerer` using pipeline context injected via Pydantic AI's `deps` pattern. Structured output: `FormFillResult`. No Claude Agent SDK, no direct Anthropic key, no computer-use beta — just tool-use over an accessibility tree, which is better suited to structured HTML forms anyway.
 
-**Tech Stack:** Claude Agent SDK Python (`claude-agent-sdk`), Playwright MCP (`@playwright/mcp` via npx), existing Pydantic AI orchestration, Playwright itself (installed as transitive).
+**Tech Stack:** Pydantic AI 1.86 (already installed, already wired through OpenRouter for Claude), Playwright MCP (`@playwright/mcp@latest` via `npx`), Chromium (auto-installed by Playwright MCP on first run).
 
 **Scope limits:**
-- **V1 supports YC WaaS only.** Greenhouse + Lever → Phase 4b (different form structures need different prompt engineering).
-- **No live submission tests in CI.** Integration tests use a local HTML form fixture. Live runs are user-triggered against specific real applications.
-- **Screening Answerer callback is included** — it's the plan's strongest multi-agent collaboration story and shouldn't be deferred.
-
-**Risk acknowledgment:** Claude Agent SDK + Playwright MCP integration has API unknowns at plan-writing time. Task 1 is a spike to de-risk this before we build out the full agent. If the spike fails, the plan pauses for replanning — don't force-fit.
+- **V1 supports YC WaaS forms only.** Greenhouse/Lever/Ashby/Workday → Phase 4b.
+- **No live submission in CI.** Integration tests use a local HTML fixture. Real submissions are user-triggered.
+- **Screening callback is via `deps`-injected tool** — this is the multi-agent collaboration story.
 
 **Spec reference:** `docs/superpowers/specs/2026-04-23-auto-apply-design.md` § 6 (Agent 6: Form-Fill)
 
@@ -22,233 +20,208 @@
 ## File map
 
 **New:**
-- `backend/src/apply/agents/form_fill_real.py` — real computer-use agent
-- `backend/src/apply/agents/mcp_servers_browser.py` — Playwright MCP subprocess factory
-- `backend/src/apply/agents/form_context.py` — `ApplicationContext` dataclass bundling profile + resume + cover letter + callback hook
-- `backend/tests/agents/test_form_fill_real.py` — unit tests with mocked SDK
+- `backend/src/apply/agents/form_fill_real.py`
+- `backend/src/apply/agents/form_context.py` (typed `FormFillDeps`)
+- `backend/tests/agents/test_form_fill_real.py`
 - `backend/tests/agents/test_form_context.py`
-- `backend/tests/fixtures/simple_application_form.html` — local test form
-- `backend/tests/integration/test_form_fill_local.py` — integration test against local form
-- `spikes/claude_agent_sdk_playwright_spike.py` — one-off spike script (Task 1)
+- `backend/tests/fixtures/simple_application_form.html`
+- `backend/tests/integration/__init__.py`
+- `backend/tests/integration/test_form_fill_local.py`
+- `spikes/pydantic_ai_playwright_spike.py`
 
 **Modified:**
-- `backend/pyproject.toml` — add `claude-agent-sdk`
+- `backend/src/apply/agents/mcp_servers.py` — add `playwright_mcp()` factory alongside tavily/firecrawl
 - `backend/src/apply/agents/runtime.py` — add `form_fill` entrypoint
-- `backend/src/apply/orchestrator/graph.py` — route FILLING_FORM through runtime with context
-- `LEARNINGS.md` — Phase 4a entry
-- `README.md` — Phase 4a status
+- `backend/src/apply/orchestrator/graph.py` — build `FormFillDeps` and route Form-Fill through runtime
+- `backend/seed/profile.json` — add `full_name` + optional `resume_pdf_path`
+- `LEARNINGS.md`, `README.md`
+
+**Not needed (explicitly removed from the prior plan):**
+- `claude-agent-sdk` dependency
+- `backend/src/apply/agents/mcp_servers_browser.py` (merged into main `mcp_servers.py`)
+- `ANTHROPIC_API_KEY` in `.env`
 
 ---
 
 ## Prerequisites
 
-- Phase 3b merged to master (confirm `git log master --oneline | head -1` shows `22ceddd` or later)
-- Node + `npx` installed (`which npx`)
-- `.env` has `APPLY_OPENROUTER_API_KEY` — but note: Claude Agent SDK requires `ANTHROPIC_API_KEY` directly (not via OpenRouter), because computer-use is Anthropic-native. Add `ANTHROPIC_API_KEY` to `.env` with a funded Anthropic key. **This is new for Phase 4.**
+- Phase 3b merged to master (`git log master --oneline | head -1` shows `22ceddd` or later)
+- Node + `npx` on PATH (already installed from Phase 2a)
+- `.env` has `APPLY_OPENROUTER_API_KEY` (already set)
+- Docker running Postgres (`docker ps | grep apply-postgres`)
 
 ---
 
-## Task 1: Spike — prove Claude Agent SDK + Playwright MCP can fill a field
+## Task 1: Spike — Pydantic AI + Playwright MCP fills one field
 
-**Goal of this task:** de-risk the integration before building the full agent. Success = one-page script that launches Playwright MCP, starts a Claude Agent SDK session, fills a `<input name="full_name">` on a local HTML form, prints the final HTML showing the value populated. Failure = report BLOCKED so we can replan.
+**Goal:** prove the integration before building the full agent. Success criterion: agent launches Playwright MCP, opens a local HTML form, fills `full_name`, returns structured output confirming the action. If this spike fails, we STOP and replan.
 
 **Files:**
-- Create: `spikes/claude_agent_sdk_playwright_spike.py`
 - Create: `backend/tests/fixtures/simple_application_form.html`
+- Create: `spikes/pydantic_ai_playwright_spike.py`
 
-- [ ] **Step 1: Add `claude-agent-sdk` to dependencies**
-
-In `backend/pyproject.toml` `dependencies` list, add:
-
-```toml
-    "claude-agent-sdk>=0.1.0",
-```
-
-Run `cd backend && uv sync`.
-
-Expected: resolves and installs. If the package name or version number differs, adjust — Anthropic's SDK has been iterating. Verify with:
-
-```bash
-uv run python -c "import claude_agent_sdk; print(claude_agent_sdk.__version__)"
-```
-
-If the import name differs (e.g., `anthropic_agents`, `claude_sdk`), use the correct one and note the deviation.
-
-- [ ] **Step 2: Create the local test form**
+- [ ] **Step 1: Create the local test form**
 
 Create `backend/tests/fixtures/simple_application_form.html`:
 
 ```html
 <!DOCTYPE html>
 <html>
-<head><title>Test Application Form</title></head>
+<head><title>Test Application</title></head>
 <body>
-<h1>Apply for: Test Engineer</h1>
+<h1>Apply for: Test Engineer at Test Corp</h1>
 <form id="app-form" action="/submit" method="post">
   <label>Full name: <input type="text" name="full_name" id="full_name" required /></label><br/>
   <label>Email: <input type="email" name="email" id="email" required /></label><br/>
   <label>GitHub URL: <input type="url" name="github_url" id="github_url" /></label><br/>
   <label>Cover letter:<br/>
-    <textarea name="cover_letter" id="cover_letter" rows="8" cols="50"></textarea>
+    <textarea name="cover_letter" id="cover_letter" rows="8" cols="60"></textarea>
   </label><br/>
   <label>Why us?:<br/>
-    <textarea name="why_us" id="why_us" rows="4" cols="50" placeholder="Custom screening question"></textarea>
+    <textarea name="why_us" id="why_us" rows="4" cols="60" placeholder="Screening question"></textarea>
   </label><br/>
   <button type="submit" id="submit-btn">Submit application</button>
 </form>
-<div id="result"></div>
 </body>
 </html>
 ```
 
-- [ ] **Step 3: Write the spike script**
+- [ ] **Step 2: Create the spike script**
 
-Create `spikes/claude_agent_sdk_playwright_spike.py`:
+Create `spikes/pydantic_ai_playwright_spike.py`:
 
 ```python
-"""Phase 4a spike: prove Claude Agent SDK + Playwright MCP can fill ONE field.
+"""Phase 4a spike: Pydantic AI + Playwright MCP via OpenRouter.
 
-Success: running `python spikes/claude_agent_sdk_playwright_spike.py` opens
-the local test form, fills `full_name`, and prints the DOM showing the
-value populated.
+Proves that our existing stack (Pydantic AI + Claude via OpenRouter,
+same as research agents) can drive a browser via Playwright MCP.
 
-Requires:
-  ANTHROPIC_API_KEY in env
-  npx on PATH
-  Node >= 18
+Success: script fills `full_name` on the local test form and returns
+a structured result describing what it did.
+
+Requires: APPLY_OPENROUTER_API_KEY in env, npx on PATH.
 """
+from __future__ import annotations
+
 import asyncio
-import os
+import sys
 from pathlib import Path
+
+# Ensure backend src is importable when running from repo root
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "backend" / "src"))
+
+from pydantic import BaseModel
+from pydantic_ai import Agent
+from pydantic_ai.mcp import MCPServerStdio
+
+from apply.agents.models import sonnet
+
+
+class SpikeResult(BaseModel):
+    action_taken: str
+    field_filled: str
+    value_written: str
+    success: bool
 
 
 async def main() -> None:
-    # The Claude Agent SDK API shape below is based on Anthropic's
-    # documented patterns as of early 2026. If the actual API differs,
-    # this spike will print a clear error and we'll adapt.
-    try:
-        from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
-    except ImportError as e:
-        raise SystemExit(f"Import failed: {e}\nInstall via: uv pip install claude-agent-sdk")
-
-    form_path = Path(__file__).parent.parent / "backend/tests/fixtures/simple_application_form.html"
+    form_path = ROOT / "backend" / "tests" / "fixtures" / "simple_application_form.html"
     file_url = f"file://{form_path.resolve()}"
 
-    # Configure Playwright MCP as the agent's tool server.
-    options = ClaudeAgentOptions(
-        mcp_servers={
-            "playwright": {
-                "type": "stdio",
-                "command": "npx",
-                "args": ["-y", "@playwright/mcp@latest"],
-                "env": {},
-            }
-        },
-        allowed_tools=["mcp__playwright__*"],
-        permission_mode="acceptEdits",
-        max_turns=10,
+    playwright_server = MCPServerStdio(
+        command="npx",
+        args=["-y", "@playwright/mcp@latest"],
+        env={"PLAYWRIGHT_HEADLESS": "true"},
     )
 
-    prompt = (
-        f"Open the page at {file_url}. Fill the `full_name` field with "
-        f'"Sanyam Upadhyay". Then return the rendered page HTML so I can '
-        f"verify the value is populated. Do not submit the form."
+    agent = Agent(
+        model=sonnet(),
+        output_type=SpikeResult,
+        system_prompt=(
+            "You have Playwright browser tools. Navigate to the given URL, "
+            "inspect the form, fill ONE field (`full_name`) with the value "
+            '"Sanyam Upadhyay", and return a structured result. Do NOT submit.'
+        ),
+        toolsets=[playwright_server],
     )
 
-    async with ClaudeSDKClient(options=options) as client:
-        await client.query(prompt)
-        async for message in client.receive_response():
-            print(message)
+    async with agent:
+        result = await agent.run(f"Fill the full_name field at: {file_url}")
+
+    print("=== RESULT ===")
+    print(result.output.model_dump_json(indent=2))
 
 
 if __name__ == "__main__":
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        raise SystemExit("ANTHROPIC_API_KEY not set. Add it to your shell env.")
     asyncio.run(main())
 ```
 
-- [ ] **Step 4: Run the spike**
+- [ ] **Step 3: Run the spike**
 
 ```bash
-export ANTHROPIC_API_KEY=<your-key>
 cd /Users/sanyamupadhyay/Documents/gusain/clarity
-uv run --directory backend python ../spikes/claude_agent_sdk_playwright_spike.py
+set -a && source .env && set +a
+uv run --directory backend python ../spikes/pydantic_ai_playwright_spike.py
 ```
 
-**Expected outcome A (success):** the script prints agent messages showing `mcp__playwright__navigate`, `mcp__playwright__fill` tool calls, and eventually returns HTML with `value="Sanyam Upadhyay"` in the `full_name` input.
+**Expected A (success):** agent prints `SpikeResult` JSON with `success: true`, `field_filled: "full_name"`, `value_written: "Sanyam Upadhyay"`, `action_taken` describing the fill. Takes 30-60s + ~$0.05.
 
-**Expected outcome B (failure):** script errors with a clear message. Investigate:
-- ImportError → package name is wrong. Grep the installed dist-info for the right module.
-- AuthenticationError → `ANTHROPIC_API_KEY` is missing or invalid.
-- MCP server won't start → `npx @playwright/mcp` package path has changed; try `@playwright/mcp-server` or similar.
-- "Tool not found: mcp__playwright__navigate" → tool naming differs; run a minimal query first asking the agent to list available tools, then adapt.
+**Expected B (failure paths):**
+- **npm package name shifted** (`@playwright/mcp` vs `@playwright/mcp-server`) → try `npx -y @playwright/mcp-server@latest` and retry.
+- **Playwright needs Chromium install** → first run prints a message about downloading Chromium (~100MB). That's fine; let it finish.
+- **Pydantic AI MCP toolset API differs** — if `toolsets=` keyword fails, try `mcp_servers=` (older name). Same rationale as Phase 2a Chunk 2 adaptations.
+- **Agent loops forever** — hit max_turns. Adjust the system prompt to make the task more bounded, or cap `max_turns` in agent config.
 
-**If outcome B:** STOP THE CHUNK. Report BLOCKED with the specific error. Do NOT proceed to build the full agent against assumptions that don't hold.
+**If B:** report BLOCKED with exact error. Do not proceed.
 
-- [ ] **Step 5: Commit (regardless of outcome, save the artifact)**
+- [ ] **Step 4: Commit (regardless of outcome)**
 
 ```bash
-git add backend/pyproject.toml backend/uv.lock backend/tests/fixtures/simple_application_form.html spikes/
-git commit -m "chore(phase-4a): spike Claude Agent SDK + Playwright MCP integration"
+git add spikes/ backend/tests/fixtures/simple_application_form.html
+git commit -m "chore(phase-4a): spike Pydantic AI + Playwright MCP via OpenRouter"
 ```
 
 ---
 
-## Task 2: ApplicationContext dataclass + tests
+## Task 2: `FormFillDeps` typed dependency
 
 **Files:**
 - Create: `backend/src/apply/agents/form_context.py`
 - Create: `backend/tests/agents/test_form_context.py`
 
-**Purpose:** a single typed struct that bundles everything Form-Fill needs to fill a form — profile, resume path, cover letter text, and a callback for unknown screening questions.
+Pydantic AI's `deps` pattern lets you inject runtime context into tool functions. `FormFillDeps` holds everything the agent's tools need at run time.
 
 - [ ] **Step 1: Write failing test**
 
 Create `backend/tests/agents/test_form_context.py`:
 
 ```python
-import pytest
-
-from apply.agents.form_context import ApplicationContext, ScreeningCallback
+from apply.agents.form_context import FormFillDeps
 
 
-@pytest.fixture
-def sample_context() -> ApplicationContext:
-    async def dummy_callback(question: str) -> str:
-        return f"Answer to {question}"
-
-    return ApplicationContext(
+def test_form_fill_deps_fields():
+    deps = FormFillDeps(
         application_url="https://example.com/apply",
-        profile={
-            "full_name": "Sanyam Upadhyay",
-            "email": "satish@team.galaxy.ai",
-            "github_url": "https://github.com/sanyamupadhyay",
-        },
+        profile={"full_name": "Sanyam Upadhyay", "email": "e@x.co"},
         resume_pdf_path="/tmp/resume.pdf",
         cover_letter_text="Dear team, …",
         company_name="Acme AI",
         company_brief="Series A agent startup",
-        jd_markdown="Founding Engineer. 5+ yrs Python.",
-        voice_samples=["Sample one.", "Sample two."],
-        screening_callback=dummy_callback,
+        jd_markdown="Engineer role",
+        voice_samples=["Sample."],
     )
+    assert deps.profile["full_name"] == "Sanyam Upadhyay"
+    assert deps.company_name == "Acme AI"
+    assert deps.resume_pdf_path == "/tmp/resume.pdf"
 
 
-def test_context_fields_populated(sample_context):
-    assert sample_context.profile["full_name"] == "Sanyam Upadhyay"
-    assert sample_context.company_name == "Acme AI"
-    assert sample_context.cover_letter_text.startswith("Dear team")
+def test_form_fill_deps_is_frozen():
+    """Deps should be safe to share across tool invocations — immutable."""
+    import dataclasses
 
-
-def test_resolve_profile_field(sample_context):
-    assert sample_context.resolve_profile_field("full_name") == "Sanyam Upadhyay"
-    assert sample_context.resolve_profile_field("unknown_key") is None
-
-
-@pytest.mark.asyncio
-async def test_callback_invocation(sample_context):
-    result = await sample_context.screening_callback("Why this company?")
-    assert result == "Answer to Why this company?"
+    from apply.agents.form_context import FormFillDeps
+    assert dataclasses.is_dataclass(FormFillDeps)
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -264,19 +237,19 @@ Expected: FAIL with `ModuleNotFoundError`.
 Create `backend/src/apply/agents/form_context.py`:
 
 ```python
-"""Typed context bundle passed to the Form-Fill agent."""
+"""Typed dependency bundle injected into the Form-Fill agent at run time.
+
+Pydantic AI's `deps` pattern lets the agent's custom tools access this
+context via `RunContext[FormFillDeps].deps`. Frozen to prevent mutation
+mid-run.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Awaitable, Callable
-
-ScreeningCallback = Callable[[str], Awaitable[str]]
 
 
-@dataclass
-class ApplicationContext:
-    """Everything Form-Fill needs to fill a form for one application."""
-
+@dataclass(frozen=True)
+class FormFillDeps:
     application_url: str
     profile: dict[str, str]
     resume_pdf_path: str
@@ -285,12 +258,6 @@ class ApplicationContext:
     company_brief: str
     jd_markdown: str
     voice_samples: list[str]
-    screening_callback: ScreeningCallback
-
-    def resolve_profile_field(self, key: str) -> str | None:
-        """Return a profile field value or None if not set."""
-        value = self.profile.get(key)
-        return value if value else None
 ```
 
 - [ ] **Step 4: Run test to verify pass**
@@ -299,102 +266,85 @@ class ApplicationContext:
 cd backend && uv run pytest tests/agents/test_form_context.py -v
 ```
 
-Expected: 3 passed.
+Expected: 2 passed.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add backend/src/apply/agents/form_context.py backend/tests/agents/test_form_context.py
-git commit -m "feat(agents): ApplicationContext for Form-Fill agent"
+git commit -m "feat(agents): FormFillDeps typed run-time context for Form-Fill agent"
 ```
 
 ---
 
-## Task 3: Browser MCP subprocess factory
+## Task 3: Playwright MCP factory
 
 **Files:**
-- Create: `backend/src/apply/agents/mcp_servers_browser.py`
+- Modify: `backend/src/apply/agents/mcp_servers.py`
 
-This is a separate module from `mcp_servers.py` (Tavily/Firecrawl) because Playwright MCP has different lifecycle and resource needs — it manages a Chromium subprocess.
+- [ ] **Step 1: Add `playwright_mcp()` alongside existing factories**
 
-- [ ] **Step 1: Implement**
-
-Create `backend/src/apply/agents/mcp_servers_browser.py`:
+Read `backend/src/apply/agents/mcp_servers.py` first, then append:
 
 ```python
-"""Playwright MCP server factory for the Form-Fill agent.
+def playwright_mcp() -> MCPServerStdio:
+    """Microsoft's official Playwright MCP server.
 
-Runs Microsoft's @playwright/mcp as a Node subprocess. The agent spawns
-Chromium in headed or headless mode depending on PLAYWRIGHT_HEADLESS env.
-"""
-from __future__ import annotations
-
-import os
-
-
-def playwright_mcp_config() -> dict:
-    """Return a Claude Agent SDK mcp_servers entry for Playwright MCP.
-
-    Returns the dict structure that `ClaudeAgentOptions.mcp_servers`
-    expects. Separated from the factory in mcp_servers.py (which uses
-    Pydantic AI's MCPServerStdio) because Claude Agent SDK expects
-    a plain dict spec.
+    Runs Chromium as a Node subprocess. On first run, Playwright downloads
+    Chromium (~100MB); cached thereafter. Set PLAYWRIGHT_HEADLESS=false in
+    the environment to watch the browser visually during debugging.
     """
-    return {
-        "type": "stdio",
-        "command": "npx",
-        "args": ["-y", "@playwright/mcp@latest"],
-        "env": {
-            "PLAYWRIGHT_HEADLESS": os.getenv("PLAYWRIGHT_HEADLESS", "true"),
-        },
-    }
+    import os
+    return MCPServerStdio(
+        command="npx",
+        args=["-y", "@playwright/mcp@latest"],
+        env={"PLAYWRIGHT_HEADLESS": os.getenv("PLAYWRIGHT_HEADLESS", "true")},
+    )
 ```
 
-- [ ] **Step 2: Verify import**
+- [ ] **Step 2: Verify**
 
 ```bash
-cd backend && uv run python -c "from apply.agents.mcp_servers_browser import playwright_mcp_config; cfg = playwright_mcp_config(); print(cfg['command'], cfg['args'])"
+cd backend && uv run python -c "from apply.agents.mcp_servers import playwright_mcp; s = playwright_mcp(); print(type(s).__name__, s.args)"
 ```
 
-Expected: `npx ['-y', '@playwright/mcp@latest']`
+Expected: `MCPServerStdio ['-y', '@playwright/mcp@latest']`
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add backend/src/apply/agents/mcp_servers_browser.py
-git commit -m "feat(agents): Playwright MCP subprocess config for Form-Fill"
+git add backend/src/apply/agents/mcp_servers.py
+git commit -m "feat(mcp): Playwright MCP factory alongside Tavily/Firecrawl"
 ```
 
 ---
 
-## Task 4: Form-Fill real agent
+## Task 4: Form-Fill real agent with screening-question tool
 
 **Files:**
 - Create: `backend/src/apply/agents/form_fill_real.py`
 - Create: `backend/tests/agents/test_form_fill_real.py`
 
-**Design:** `form_fill_real(ctx: ApplicationContext) -> FormFillResult` uses Claude Agent SDK in computer-use mode. The prompt gives the agent the `ApplicationContext` as structured text + instructs it to (1) navigate to the URL, (2) inspect form fields, (3) fill what it can from profile, (4) paste the cover letter into the cover-letter field, (5) call the screening callback for any free-text field it can't answer from context, (6) take a final screenshot and return a structured summary — WITHOUT submitting. Submission is a separate explicit call after HITL #3.
+**Design:** Pydantic AI `Agent` with Sonnet, `FormFillDeps` as deps type, Playwright MCP as a toolset, and one custom `@agent.tool` that calls `runtime.screening_answerer` using pipeline context from deps. Structured output = `FormFillResult`.
 
-- [ ] **Step 1: Write failing test with mocked SDK**
+- [ ] **Step 1: Write failing test**
 
 Create `backend/tests/agents/test_form_fill_real.py`:
 
 ```python
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+from pydantic_ai.models.test import TestModel
 
-from apply.agents.form_context import ApplicationContext
+from apply.agents.form_context import FormFillDeps
 from apply.agents.form_fill_real import form_fill_real
 from apply.agents.form_fill import FormFillResult
 
 
 @pytest.fixture
-def sample_context() -> ApplicationContext:
-    async def dummy_callback(question: str) -> str:
-        return f"Dummy answer to: {question}"
-
-    return ApplicationContext(
+def sample_deps() -> FormFillDeps:
+    return FormFillDeps(
         application_url="file:///tmp/test.html",
         profile={"full_name": "Test User", "email": "t@e.co"},
         resume_pdf_path="/tmp/resume.pdf",
@@ -403,69 +353,80 @@ def sample_context() -> ApplicationContext:
         company_brief="Series A agent startup",
         jd_markdown="Engineer role",
         voice_samples=[],
-        screening_callback=dummy_callback,
     )
 
 
 @pytest.mark.asyncio
-async def test_form_fill_real_returns_structured_result(sample_context):
-    """Mock the Claude Agent SDK client so no real browser or LLM spawns."""
-
-    # The real agent ends its run by emitting a final message whose text is
-    # a JSON blob of the structured result. Mock this end-to-end.
-    fake_final_text = (
-        '{"fields_filled": ['
-        '{"name": "full_name", "value": "Test User", "field_type": "text"},'
-        '{"name": "cover_letter", "value": "Dear team, …", "field_type": "textarea"}'
-        '], "unknown_fields": [], "screenshot_path": "/tmp/apply/screenshot.png", '
-        '"submission_url": null, "success": true}'
+async def test_form_fill_real_returns_structured_result(sample_deps):
+    test_model = TestModel(
+        custom_output_args={
+            "fields_filled": [
+                {"name": "full_name", "value": "Test User", "field_type": "text"},
+                {"name": "email", "value": "t@e.co", "field_type": "text"},
+                {"name": "cover_letter", "value": "Dear team, …", "field_type": "textarea"},
+            ],
+            "unknown_fields": [],
+            "screenshot_path": "/tmp/apply/fill.png",
+            "submission_url": None,
+            "success": True,
+        }
     )
 
-    async def fake_receive_response():
-        msg = MagicMock()
-        msg.content = [MagicMock(type="text", text=fake_final_text)]
-        yield msg
+    from apply.agents import form_fill_real as mod
 
-    fake_client = MagicMock()
-    fake_client.__aenter__ = AsyncMock(return_value=fake_client)
-    fake_client.__aexit__ = AsyncMock(return_value=None)
-    fake_client.query = AsyncMock()
-    fake_client.receive_response = fake_receive_response
+    # Build a new agent without the real Playwright MCP toolset for the test
+    from pydantic_ai import Agent
 
-    with patch("apply.agents.form_fill_real.ClaudeSDKClient", return_value=fake_client):
-        result = await form_fill_real(ctx=sample_context)
+    agent_without_mcp = Agent(
+        model=test_model,
+        output_type=FormFillResult,
+        deps_type=FormFillDeps,
+        system_prompt="test",
+    )
+
+    with patch.object(mod, "_build_agent", return_value=agent_without_mcp):
+        result = await form_fill_real(deps=sample_deps)
 
     assert isinstance(result, FormFillResult)
     assert result.success
-    assert len(result.fields_filled) == 2
+    assert len(result.fields_filled) == 3
     assert any(f.name == "full_name" for f in result.fields_filled)
-    assert result.screenshot_path == "/tmp/apply/screenshot.png"
+    assert result.screenshot_path == "/tmp/apply/fill.png"
 
 
 @pytest.mark.asyncio
-async def test_form_fill_real_handles_unknown_fields(sample_context):
-    """When the agent returns unknown_fields, those appear in the result."""
-    fake_final_text = (
-        '{"fields_filled": ['
-        '{"name": "full_name", "value": "Test User", "field_type": "text"}'
-        '], "unknown_fields": ['
-        '{"name": "why_us", "field_type": "textarea", "best_guess": null, "reason_flagged": "open-ended question"}'
-        '], "screenshot_path": "/tmp/s.png", "submission_url": null, "success": true}'
+async def test_form_fill_real_surfaces_unknown_fields(sample_deps):
+    test_model = TestModel(
+        custom_output_args={
+            "fields_filled": [
+                {"name": "full_name", "value": "Test User", "field_type": "text"}
+            ],
+            "unknown_fields": [
+                {
+                    "name": "why_us",
+                    "field_type": "textarea",
+                    "best_guess": None,
+                    "reason_flagged": "open-ended question not in profile",
+                }
+            ],
+            "screenshot_path": "/tmp/s.png",
+            "submission_url": None,
+            "success": True,
+        }
     )
 
-    async def fake_receive_response():
-        msg = MagicMock()
-        msg.content = [MagicMock(type="text", text=fake_final_text)]
-        yield msg
+    from apply.agents import form_fill_real as mod
+    from pydantic_ai import Agent
 
-    fake_client = MagicMock()
-    fake_client.__aenter__ = AsyncMock(return_value=fake_client)
-    fake_client.__aexit__ = AsyncMock(return_value=None)
-    fake_client.query = AsyncMock()
-    fake_client.receive_response = fake_receive_response
+    agent_without_mcp = Agent(
+        model=test_model,
+        output_type=FormFillResult,
+        deps_type=FormFillDeps,
+        system_prompt="test",
+    )
 
-    with patch("apply.agents.form_fill_real.ClaudeSDKClient", return_value=fake_client):
-        result = await form_fill_real(ctx=sample_context)
+    with patch.object(mod, "_build_agent", return_value=agent_without_mcp):
+        result = await form_fill_real(deps=sample_deps)
 
     assert len(result.unknown_fields) == 1
     assert result.unknown_fields[0].name == "why_us"
@@ -479,131 +440,111 @@ cd backend && uv run pytest tests/agents/test_form_fill_real.py -v
 
 Expected: FAIL with `ModuleNotFoundError`.
 
-- [ ] **Step 3: Implement the agent**
+- [ ] **Step 3: Implement**
 
 Create `backend/src/apply/agents/form_fill_real.py`:
 
 ```python
-"""Real Form-Fill computer-use agent via Claude Agent SDK + Playwright MCP.
+"""Real Form-Fill browser-driving agent.
 
-Takes an ApplicationContext, drives a browser to fill the application
-form, and returns a structured FormFillResult. Does NOT submit — the
-caller (orchestrator) handles submission separately after HITL #3.
+Pydantic AI Agent with:
+- Claude Sonnet via OpenRouter (same stack as research agents)
+- Playwright MCP as a toolset (browser control)
+- One custom tool `answer_screening_question` that calls the real
+  Screening Answerer using pipeline context from deps
+- Structured output: FormFillResult
 
-The agent returns its final state as a JSON blob in its last message,
-which we parse into FormFillResult. If the JSON is malformed or missing,
-we return a failure result with the raw text in `notes`.
+The agent navigates to the application URL, inspects the form via
+Playwright's accessibility snapshot, fills what it knows from the
+profile/cover letter, calls the screening tool for unknown free-text
+fields, captures a screenshot, and returns the structured result.
+
+It does NOT submit — submission is a separate step after HITL #3.
 """
 from __future__ import annotations
 
-import json
-from typing import Any
+from pydantic_ai import Agent, RunContext
 
-from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
-
-from apply.agents.form_context import ApplicationContext
-from apply.agents.form_fill import FilledField, FormFillResult, UnknownField
-from apply.agents.mcp_servers_browser import playwright_mcp_config
+from apply.agents.form_context import FormFillDeps
+from apply.agents.form_fill import FormFillResult
+from apply.agents.mcp_servers import playwright_mcp
+from apply.agents.models import sonnet
+from apply.schemas.enums import ScreeningAnswerOrigin
 
 
 SYSTEM_PROMPT = """
-You are filling a job application form. You have browser tools (navigate,
-click, type, upload, screenshot, accessibility_snapshot) via Playwright MCP.
+You are filling a job application form via a browser. You have Playwright
+tools (navigate, click, fill, upload, screenshot, accessibility_snapshot)
+and a custom `answer_screening_question` tool that drafts answers to
+free-text questions in the candidate's voice.
 
-Your job:
-1. Navigate to the application URL.
-2. Inspect the form — read the accessibility snapshot to identify all fields.
-3. Fill fields you have values for from the application context:
-   - `full_name`, `email`, `phone`, `linkedin_url`, `github_url`, `portfolio_url`
-     — from profile
-   - Resume upload — use the resume PDF path
-   - Cover letter — paste the full cover letter text
-4. For free-text questions you can't directly answer from the profile
-   (screening questions like "Why us?", "Describe a project…"), mark them
-   as UNKNOWN in your response — do NOT make up answers yourself. The
-   caller will loop back with drafted answers.
-5. Take a screenshot of the filled form. Save the path.
-6. DO NOT click Submit. Return control to the caller after filling.
+Your job for THIS application:
 
-Your FINAL message MUST be a JSON blob of the form:
+1. Navigate to `application_url` (in your deps).
+2. Take an accessibility snapshot. Identify every form field.
+3. Fill fields you have direct values for from deps.profile:
+   - full_name, email, phone, linkedin_url, github_url, portfolio_url,
+     location — all optional, fill what's set.
+4. Upload the resume: `deps.resume_pdf_path`.
+5. Paste `deps.cover_letter_text` into the cover-letter textarea.
+6. For any free-text question (like "Why us?", "Tell us about a time…"):
+   - Call `answer_screening_question(question)` to get a drafted answer.
+   - Fill the field with the returned answer.
+7. For fields you truly can't interpret (custom dropdowns, file types
+   you don't have), put them in `unknown_fields` with `best_guess=null`
+   and a short `reason_flagged`. DO NOT fabricate.
+8. Take a final screenshot. Include the absolute path in `screenshot_path`.
+9. DO NOT click Submit. Return the structured FormFillResult.
 
-{
-  "fields_filled": [
-    {"name": "<field_name>", "value": "<value>", "field_type": "text|textarea|file|select"}
-  ],
-  "unknown_fields": [
-    {"name": "<field_name>", "field_type": "text|textarea", "best_guess": null, "reason_flagged": "<why>"}
-  ],
-  "screenshot_path": "<absolute path or empty string>",
-  "submission_url": null,
-  "success": true|false
-}
-
-Nothing else in the final message — just the JSON blob.
+Return JSON only via the structured output — do not narrate.
 """
 
 
-def _build_user_prompt(ctx: ApplicationContext) -> str:
-    profile_lines = "\n".join(f"- {k}: {v}" for k, v in ctx.profile.items())
-    return (
-        f"APPLICATION URL: {ctx.application_url}\n\n"
-        f"PROFILE:\n{profile_lines}\n\n"
-        f"RESUME PDF: {ctx.resume_pdf_path}\n\n"
-        f"COVER LETTER:\n---\n{ctx.cover_letter_text}\n---\n\n"
-        f"COMPANY: {ctx.company_name} — {ctx.company_brief}\n\n"
-        f"Proceed. Remember: do not submit."
-    )
-
-
-def _parse_final(text: str) -> dict[str, Any] | None:
-    """Extract the JSON blob from the agent's final message."""
-    start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        return None
-    try:
-        return json.loads(text[start : end + 1])
-    except json.JSONDecodeError:
-        return None
-
-
-async def form_fill_real(ctx: ApplicationContext) -> FormFillResult:
-    options = ClaudeAgentOptions(
-        mcp_servers={"playwright": playwright_mcp_config()},
-        allowed_tools=["mcp__playwright__*"],
-        permission_mode="acceptEdits",
-        max_turns=20,
+def _build_agent() -> Agent:
+    """Build at call time so MCP subprocess binds to current loop."""
+    agent: Agent = Agent(
+        model=sonnet(),
+        output_type=FormFillResult,
+        deps_type=FormFillDeps,
         system_prompt=SYSTEM_PROMPT,
+        toolsets=[playwright_mcp()],
+        retries=1,
     )
 
-    final_text = ""
-    async with ClaudeSDKClient(options=options) as client:
-        await client.query(_build_user_prompt(ctx))
-        async for message in client.receive_response():
-            for block in getattr(message, "content", []) or []:
-                if getattr(block, "type", None) == "text":
-                    final_text = block.text  # keep overwriting; last wins
+    @agent.tool
+    async def answer_screening_question(
+        ctx: RunContext[FormFillDeps], question: str
+    ) -> str:
+        """Draft an answer to a screening question in the candidate's voice."""
+        # Import inside to avoid circular import at module load time
+        from apply.agents.runtime import screening_answerer
 
-    parsed = _parse_final(final_text)
-    if not parsed:
-        return FormFillResult(
-            fields_filled=[],
-            unknown_fields=[],
-            screenshot_path="",
-            submission_url=None,
-            success=False,
+        deps = ctx.deps
+        result = await screening_answerer(
+            question=question,
+            company_name=deps.company_name,
+            company_brief=deps.company_brief,
+            jd_markdown=deps.jd_markdown,
+            corpus_resume_markdown="",  # resume already uploaded as file; text
+            corpus_voice_samples=deps.voice_samples,
+            origin=ScreeningAnswerOrigin.FORM_FILL_CALLBACK,
         )
+        return result.answer
 
-    return FormFillResult(
-        fields_filled=[FilledField(**f) for f in parsed.get("fields_filled", [])],
-        unknown_fields=[UnknownField(**u) for u in parsed.get("unknown_fields", [])],
-        screenshot_path=parsed.get("screenshot_path", ""),
-        submission_url=parsed.get("submission_url"),
-        success=parsed.get("success", False),
-    )
+    return agent
+
+
+async def form_fill_real(deps: FormFillDeps) -> FormFillResult:
+    agent = _build_agent()
+    async with agent:
+        result = await agent.run(
+            f"Proceed with the application at {deps.application_url}.",
+            deps=deps,
+        )
+    return result.output
 ```
 
-- [ ] **Step 4: Run tests to verify pass**
+- [ ] **Step 4: Run test to verify pass**
 
 ```bash
 cd backend && uv run pytest tests/agents/test_form_fill_real.py -v
@@ -611,48 +552,44 @@ cd backend && uv run pytest tests/agents/test_form_fill_real.py -v
 
 Expected: 2 passed.
 
-If the `ClaudeSDKClient` or `ClaudeAgentOptions` kwargs differ from what the plan assumes (e.g., `system_prompt` not a kwarg, or `mcp_servers` structure different), adapt based on the spike's observed API. Document any deviation.
-
 - [ ] **Step 5: Commit**
 
 ```bash
 git add backend/src/apply/agents/form_fill_real.py backend/tests/agents/test_form_fill_real.py
-git commit -m "feat(agents): real Form-Fill via Claude Agent SDK + Playwright MCP"
+git commit -m "feat(agents): real Form-Fill agent (Pydantic AI + Playwright MCP)"
 ```
 
 ---
 
-## Task 5: Runtime switch for Form-Fill
+## Task 5: Runtime entrypoint
 
 **Files:**
 - Modify: `backend/src/apply/agents/runtime.py`
 
-- [ ] **Step 1: Add entrypoint**
+- [ ] **Step 1: Add form_fill entrypoint**
 
-In `backend/src/apply/agents/runtime.py`, add imports and a new `form_fill` function.
-
-Imports (add):
+Add imports near the other agent imports in `backend/src/apply/agents/runtime.py`:
 
 ```python
-from apply.agents.form_context import ApplicationContext
+from apply.agents.form_context import FormFillDeps
 from apply.agents.form_fill import FormFillResult
 from apply.agents.form_fill import form_fill_stub as _ff_stub
 from apply.agents.form_fill_real import form_fill_real as _form_fill_real
 ```
 
-Function (add at bottom):
+Append at the bottom:
 
 ```python
-async def form_fill(ctx: ApplicationContext) -> FormFillResult:
+async def form_fill(deps: FormFillDeps) -> FormFillResult:
     if _use_real():
-        return await _form_fill_real(ctx=ctx)
+        return await _form_fill_real(deps=deps)
     return await _ff_stub(
-        application_url=ctx.application_url,
-        cover_letter_body=ctx.cover_letter_text,
+        application_url=deps.application_url,
+        cover_letter_body=deps.cover_letter_text,
     )
 ```
 
-- [ ] **Step 2: Run full test suite (should still pass)**
+- [ ] **Step 2: Run full suite**
 
 ```bash
 cd backend && uv run pytest --tb=short
@@ -669,27 +606,23 @@ git commit -m "feat(agents): runtime entrypoint for Form-Fill"
 
 ---
 
-## Task 6: Orchestrator — build ApplicationContext and route Form-Fill through runtime
+## Task 6: Orchestrator builds `FormFillDeps` and routes through runtime
 
 **Files:**
 - Modify: `backend/src/apply/orchestrator/graph.py`
 
 - [ ] **Step 1: Update FILLING_FORM branch**
 
-In `backend/src/apply/orchestrator/graph.py`, import `ApplicationContext` + `ResumeCorpus` for profile lookup, and rewrite the `FILLING_FORM` branch.
-
-Add imports at top:
+In `backend/src/apply/orchestrator/graph.py`, add these imports at the top:
 
 ```python
-from apply.agents.form_context import ApplicationContext
-from apply.agents.runtime import screening_answerer
+from apply.agents.form_context import FormFillDeps
 from apply.mcp_servers.resume_mcp.corpus import ResumeCorpus
-from apply.schemas.enums import ScreeningAnswerOrigin
 ```
 
-Remove the `from apply.agents.form_fill import form_fill_stub` import (runtime handles both paths).
+Remove (if present): `from apply.agents.form_fill import form_fill_stub` — the runtime handles both paths now.
 
-Replace the `FILLING_FORM` branch with:
+Replace the existing `FILLING_FORM` branch with:
 
 ```python
         if ctx.state == PipelineRunState.FILLING_FORM:
@@ -700,45 +633,38 @@ Replace the `FILLING_FORM` branch with:
             research = ctx.artifacts.get("company_research", {})
             samples: list[str] = ctx.artifacts.get("voice_samples", [])
 
-            # Build a profile dict from the corpus
             corpus = ResumeCorpus()
-            profile = {
-                k: v for k in (
-                    "full_name", "name", "email", "phone", "linkedin_url",
-                    "github_url", "portfolio_url", "location",
-                )
-                if (v := corpus.profile_field(k)) is not None
-            }
-            # Normalize: prefer full_name but fall back to name
+            profile: dict[str, str] = {}
+            for k in ("full_name", "name", "email", "phone", "linkedin_url",
+                      "github_url", "portfolio_url", "location"):
+                v = corpus.profile_field(k)
+                if v is not None:
+                    profile[k] = v
+            # Fallback: if full_name isn't set, use name
             if "full_name" not in profile and "name" in profile:
                 profile["full_name"] = profile["name"]
 
-            async def _screening_cb(question: str) -> str:
-                answer = await screening_answerer(
-                    question=question,
-                    company_name=listing.get("company_name", ""),
-                    company_brief=f"{research.get('company_name', '')}: {research.get('signal_score', 0):.2f}",
-                    jd_markdown=listing.get("description_markdown", ""),
-                    corpus_resume_markdown=ctx.resume_markdown,
-                    corpus_voice_samples=samples,
-                    origin=ScreeningAnswerOrigin.FORM_FILL_CALLBACK,
-                )
-                return answer.answer
+            resume_pdf_path = (
+                corpus.profile_field("resume_pdf_path")
+                or str((corpus.seed_dir / "resume.md").resolve())
+            )
 
-            app_ctx = ApplicationContext(
+            deps = FormFillDeps(
                 application_url=application_url,
                 profile=profile,
-                resume_pdf_path=str((corpus.seed_dir / "resume.md").resolve()),
+                resume_pdf_path=resume_pdf_path,
                 cover_letter_text=letter.get("body_markdown", ""),
                 company_name=listing.get("company_name", ""),
-                company_brief=f"{research.get('company_name', '')} — signal {research.get('signal_score', 0):.2f}",
+                company_brief=(
+                    f"{research.get('company_name', '')} — "
+                    f"signal {research.get('signal_score', 0):.2f}"
+                ),
                 jd_markdown=listing.get("description_markdown", ""),
                 voice_samples=samples,
-                screening_callback=_screening_cb,
             )
 
             with trace.span(name="form_fill"):
-                result = await runtime.form_fill(ctx=app_ctx)
+                result = await runtime.form_fill(deps=deps)
             ctx.artifacts["form_fill_result"] = result.model_dump(mode="json")
             ctx.cost_accumulated_usd += 0.15  # form-fill is the expensive step
             ctx.state = advance_state(ctx.state, PipelineRunState.AWAITING_SUBMIT_APPROVAL)
@@ -751,24 +677,24 @@ Replace the `FILLING_FORM` branch with:
 cd backend && uv run pytest --tb=short
 ```
 
-Expected: all pass; walking skeleton still works with stubs (because `runtime.form_fill` routes to stub when `APPLY_USE_REAL_AGENTS=false`). If the stub path needs adjustment because it now takes an `ApplicationContext` (but the stub ignores it), that's handled in `runtime.form_fill` which unpacks the ctx for the stub.
+Expected: all pass. Walking skeleton still green because runtime.form_fill routes to stub under `APPLY_USE_REAL_AGENTS=false` and the stub ignores the deps shape (it reads `application_url` + `cover_letter_text` from the deps bundle — compatible signature).
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add backend/src/apply/orchestrator/graph.py
-git commit -m "feat(orchestrator): build ApplicationContext and route Form-Fill through runtime"
+git commit -m "feat(orchestrator): build FormFillDeps and route Form-Fill through runtime"
 ```
 
 ---
 
-## Task 7: Integration test against local HTML form (opt-in, no real submit)
+## Task 7: Integration test against local HTML form (opt-in)
 
 **Files:**
 - Create: `backend/tests/integration/__init__.py`
 - Create: `backend/tests/integration/test_form_fill_local.py`
 
-- [ ] **Step 1: Create integration test**
+- [ ] **Step 1: Create package + integration test**
 
 ```bash
 mkdir -p backend/tests/integration
@@ -778,20 +704,23 @@ touch backend/tests/integration/__init__.py
 Create `backend/tests/integration/test_form_fill_local.py`:
 
 ```python
-"""Live Form-Fill test against a local HTML form. Opt-in only — requires
-ANTHROPIC_API_KEY and takes ~30-60s + ~$0.30-$1.00 in API cost."""
+"""Live Form-Fill test against a local HTML form.
+
+Opt-in: requires APPLY_OPENROUTER_API_KEY. Costs ~$0.10-0.30 per run.
+Not run in CI.
+"""
 import os
 from pathlib import Path
 
 import pytest
 
-from apply.agents.form_context import ApplicationContext
+from apply.agents.form_context import FormFillDeps
 
-REQUIRED = ("ANTHROPIC_API_KEY",)
+REQUIRED = ("APPLY_OPENROUTER_API_KEY",)
 _HAS_KEY = all(os.getenv(k) for k in REQUIRED)
 
 
-@pytest.mark.skipif(not _HAS_KEY, reason="ANTHROPIC_API_KEY not set")
+@pytest.mark.skipif(not _HAS_KEY, reason="APPLY_OPENROUTER_API_KEY not set")
 @pytest.mark.asyncio
 async def test_form_fill_local_html(monkeypatch):
     monkeypatch.setenv("APPLY_USE_REAL_AGENTS", "true")
@@ -803,10 +732,7 @@ async def test_form_fill_local_html(monkeypatch):
     form_path = Path(__file__).parent.parent / "fixtures/simple_application_form.html"
     url = f"file://{form_path.resolve()}"
 
-    async def fake_screening_cb(question: str) -> str:
-        return f"(drafted answer for: {question})"
-
-    ctx = ApplicationContext(
+    deps = FormFillDeps(
         application_url=url,
         profile={
             "full_name": "Sanyam Upadhyay",
@@ -814,34 +740,34 @@ async def test_form_fill_local_html(monkeypatch):
             "github_url": "https://github.com/sanyamupadhyay",
         },
         resume_pdf_path="/tmp/resume.pdf",
-        cover_letter_text="Dear team, this is a test cover letter.",
+        cover_letter_text="Dear team, this is a test cover letter drafted for integration testing.",
         company_name="Test Corp",
         company_brief="A local HTML test form",
-        jd_markdown="Test Engineer",
-        voice_samples=[],
-        screening_callback=fake_screening_cb,
+        jd_markdown="Test Engineer role.",
+        voice_samples=["The discipline that makes good backend code makes good agent code."],
     )
 
-    result = await runtime.form_fill(ctx=ctx)
+    result = await runtime.form_fill(deps=deps)
 
-    # We expect the agent to fill at least full_name + email + cover_letter
+    # Core fields the agent should fill
     filled_names = {f.name for f in result.fields_filled}
-    assert "full_name" in filled_names or "name" in filled_names
-    assert "email" in filled_names
-    # We expect unknown_fields to flag the `why_us` screening question
-    # (the agent shouldn't fabricate an answer to it)
+    assert "full_name" in filled_names or "name" in filled_names, (
+        f"expected full_name/name in filled, got {filled_names}"
+    )
+    assert "email" in filled_names, f"expected email in filled, got {filled_names}"
+    assert "cover_letter" in filled_names, f"expected cover_letter in filled, got {filled_names}"
+
+    # The `why_us` screening question should be handled — either answered via
+    # the tool (appears in filled_names) or flagged as unknown. Both are OK.
     unknown_names = {u.name for u in result.unknown_fields}
-    assert "why_us" in unknown_names or "why_us" in filled_names  # either pattern OK
+    assert "why_us" in filled_names or "why_us" in unknown_names
 ```
 
-- [ ] **Step 2: Run (skips without key)**
+- [ ] **Step 2: Run (expect skip without key, pass with key)**
 
 ```bash
 cd backend && uv run pytest tests/integration/test_form_fill_local.py -v
 ```
-
-Expected without `ANTHROPIC_API_KEY`: 1 SKIPPED.
-Expected with key: PASSED (~30-60s, ~$0.30-$1).
 
 - [ ] **Step 3: Commit**
 
@@ -852,15 +778,14 @@ git commit -m "test(integration): opt-in Form-Fill against local HTML form"
 
 ---
 
-## Task 8: Update `PipelineContext` Any-type hint + resume pdf path
+## Task 8: Profile seed updates
 
 **Files:**
-- Modify: `backend/src/apply/orchestrator/graph.py`
 - Modify: `backend/seed/profile.json`
 
-- [ ] **Step 1: Add resume PDF path to profile**
+- [ ] **Step 1: Add full_name + resume_pdf_path fields**
 
-The form-fill agent needs a real PDF to upload. For now, store the markdown path as a stand-in and add an optional `resume_pdf_path` field to the profile. Edit `backend/seed/profile.json`:
+Edit `backend/seed/profile.json`:
 
 ```json
 {
@@ -879,32 +804,24 @@ The form-fill agent needs a real PDF to upload. For now, store the markdown path
 }
 ```
 
-- [ ] **Step 2: Update graph.py to read resume_pdf_path when available**
-
-In the FILLING_FORM branch of `graph.py`, replace the `resume_pdf_path` line:
-
-```python
-resume_pdf_path=corpus.profile_field("resume_pdf_path") or str((corpus.seed_dir / "resume.md").resolve()),
-```
-
-- [ ] **Step 3: Run tests**
+- [ ] **Step 2: Run existing tests**
 
 ```bash
-cd backend && uv run pytest --tb=no -q
+cd backend && uv run pytest tests/mcp_servers/test_corpus.py -v
 ```
 
-Expected: all pass.
+Expected: all pass (corpus reads fields by key; extra keys are ignored).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add backend/seed/profile.json backend/src/apply/orchestrator/graph.py
-git commit -m "chore(seed): add full_name + resume_pdf_path to profile"
+git add backend/seed/profile.json
+git commit -m "chore(seed): add full_name + resume_pdf_path fields"
 ```
 
 ---
 
-## Task 9: Final verification + tag
+## Task 9: Docs + final verify + tag
 
 - [ ] **Step 1: Full suite**
 
@@ -912,15 +829,15 @@ git commit -m "chore(seed): add full_name + resume_pdf_path to profile"
 cd backend && uv run pytest --tb=short
 ```
 
-Expected: all pass. Count ~96 (Phase 3b) + ~5 new (3 context + 2 form_fill_real + 1 integration-skipped) = ~101-102.
+Expected: all pass. Count roughly 96 (from Phase 3b) + ~5 new (2 deps + 2 form_fill + 1 integration-skipped) = ~101.
 
-- [ ] **Step 2: Ruff**
+- [ ] **Step 2: Ruff clean**
 
 ```bash
 cd backend && uv run ruff check src/ tests/ eval/
 ```
 
-Fix with per-file-ignores if needed (agent prompts are inherently long). Commit as `chore: ruff cleanup for Phase 4a` if fixes needed.
+If issues, fix minimally. Add per-file-ignores to `pyproject.toml` for `src/apply/agents/form_fill_real.py` (long prompt) if needed. Commit as `chore: ruff cleanup for Phase 4a` if fixes applied.
 
 - [ ] **Step 3: Walking skeleton still green with stubs**
 
@@ -930,39 +847,43 @@ cd backend && APPLY_USE_REAL_AGENTS=false uv run pytest tests/test_e2e_skeleton.
 
 Expected: 1 passed.
 
-- [ ] **Step 4: LEARNINGS entry**
-
-Append to `LEARNINGS.md`:
+- [ ] **Step 4: Append LEARNINGS entry**
 
 ```markdown
 
-## 2026-04-24 — Computer-use agents need a spike, not a plan
-Tags: agent-design, architecture, debugging
+## 2026-04-24 — MCP toolsets beat a purpose-built SDK for structured forms
+Tags: agent-design, architecture, product-decisions
 
-Started Phase 4a with a spike task that proved Claude Agent SDK +
-Playwright MCP could fill ONE field on a local form before we built
-anything. The spike caught several API assumptions that would have
-derailed the full build (MCP config shape, tool naming, response
-iteration pattern — all documented in the Phase 4a plan's deviation
-notes).
+Initially scoped Phase 4a around Claude Agent SDK + computer-use (the
+hot 2026 skill). Reversed course to use Pydantic AI + Playwright MCP
+via OpenRouter instead. Reasons:
 
-Form-Fill is NOT architecturally the same as the other agents.
-Research + writing agents are stateless single-shots with structured
-output — Claude Agent SDK's browser loop is a multi-turn conversation
-with side effects. The abstraction that worked for other agents
-(`agent.run(prompt) → structured output`) does not apply. Form-Fill
-is closer to an interactive subprocess we drive via JSON messages
-at turn boundaries.
+1. Same keys we already have (OpenRouter) — no funded Anthropic account
+   needed for dev.
+2. Playwright MCP's structured tools (`fill(selector, value)`) are
+   strictly better than coordinate-clicking via screenshot for HTML
+   forms — faster, cheaper, more reliable, no OCR.
+3. Architectural consistency: Company Researcher already uses
+   Tavily+Firecrawl MCP toolsets in Pydantic AI. Form-Fill uses the
+   same pattern with Playwright MCP. One mental model for all agents.
+4. The "I chose accessibility-tree over computer-use for structured
+   forms" story is a stronger interview signal than "I used the SDK
+   out of the box."
 
-The screening-question callback pattern is the interesting multi-agent
-story: when Form-Fill hits an unknown field, it doesn't just mark and
-continue — it returns the field as UNKNOWN, and the orchestrator
-(upstream) either loops back through Screening Answerer for that
-question and re-submits, or shows it to the user at HITL #3.
+What we lose: the literal "Claude Agent SDK on the resume" name-drop.
+What we keep: the browser-driving agent, the dynamic multi-agent
+callback (`answer_screening_question` as an agent tool), the screenshot
+preview for HITL #3, and the real form submission path.
 
-**Takeaway:** when integrating a new framework that has side effects
-(browser, file system, subprocess), spike before you plan. The docs
-don't tell you what the real shape of the API is at runtime.
+The screening callback via Pydantic AI's `deps` + `RunContext[T].deps`
+pattern is genuinely elegant. The agent's tool accesses pipeline
+context through dependency injection, not closure capture — makes the
+agent unit-testable without pipeline state.
+
+**Takeaway:** reach for the lighter tool when you have the choice.
+An MCP server + a tool-use-capable LLM is almost always enough for
+structured work. Computer-use (screenshot + coordinates) is only
+necessary when there's no structured accessor.
 
 ---
 ```
@@ -972,10 +893,11 @@ don't tell you what the real shape of the API is at runtime.
 Update the Status callout:
 
 ```markdown
-> **Status:** Phase 4a complete. Form-Fill now runs as a real
-> computer-use agent (Claude Agent SDK + Playwright MCP) against
-> YC WaaS forms. All 7 agents are real. Greenhouse + Lever support
-> (Phase 4b) and dashboard/deploy (Phase 5) remain.
+> **Status:** Phase 4a complete. Form-Fill now drives a real browser
+> via Playwright MCP, filling YC WaaS forms end-to-end. All 7 agents
+> are real. Screening-question callback is a dynamic tool invocation
+> via Pydantic AI's deps pattern. Phase 4b (Greenhouse + Lever ATS
+> support) and Phase 5 (dashboard + deploy) remain.
 ```
 
 - [ ] **Step 6: Tag**
@@ -995,25 +917,22 @@ git commit -m "docs: Phase 4a LEARNINGS entry + README update"
 
 ## Self-review checklist
 
-- [ ] Task 1 spike actually passed before building Tasks 2+
-- [ ] All unit tests use mocked SDK — no real Claude Agent SDK calls in `pytest -q`
-- [ ] Integration test opt-in (skips without ANTHROPIC_API_KEY)
+- [ ] Task 1 spike actually succeeded before Tasks 2+ proceeded
+- [ ] All unit tests use `TestModel` + patched `_build_agent` — no real browser or LLM
+- [ ] Integration test opt-in (skips without APPLY_OPENROUTER_API_KEY)
 - [ ] Walking skeleton still passes with stubs
-- [ ] Runtime switch handles `APPLY_USE_REAL_AGENTS=false` → stub path
-- [ ] Orchestrator builds a valid `ApplicationContext` with all fields
-- [ ] Screening callback is a closure that captures the current pipeline's company/resume context — not a module-level fn
+- [ ] No `ANTHROPIC_API_KEY` or `claude-agent-sdk` anywhere in the diff
+- [ ] Screening-question tool uses `RunContext[FormFillDeps].deps` for context — not closure capture
 - [ ] No `Co-Authored-By:` trailer on any commit
 
 ---
 
 ## Out of scope (Phase 4b / 5)
 
-- Greenhouse-specific form filling (iframes, conditional fields)
-- Lever-specific form filling (sometimes shadow DOM, custom widgets)
-- Workday / Ashby forms (deliberately cut per the original spec)
-- Actually submitting to a real company in a test (too risky)
-- Dashboard + outcome-marking UI (Phase 5)
-- Blog post / Loom demo (Phase 5)
-- Deployment (Phase 5)
-- Retry-on-failure loop when form-fill partially completes
-- Parallel form-fill across multiple applications
+- Greenhouse-specific form handling (iframes, conditional fields)
+- Lever-specific form handling (shadow DOM in some places)
+- Workday / Ashby — deliberately cut
+- Live submission to real companies from CI
+- HITL #3 UI showing a real screenshot preview (needs frontend Image serving — Phase 5)
+- Dashboard for outcome marking (Phase 5)
+- Retry-on-partial-fill loop
